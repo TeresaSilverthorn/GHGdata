@@ -14,7 +14,7 @@ library(data.table)
 
 # RAW DATA is in different .txt files 
 # load all the files
+# Due to the metadata at the end of the files, must use fread() which automatically cuts it out
 
-LGRraw_2021.03.25_1 <-read.table("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_03.2021/LGR_raw_data/2021-03-25_LGR/n2o-co_2021-03-25_f0000.txt", skip="1", header=T, sep=",", nrows=571)
-
-test
+LGRraw_2021.03.25_1 <- fread("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data/LGR_raw_data/2021-03-25_LGR/n2o-co_2021-03-25_f0000.txt")
+      
