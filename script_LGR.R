@@ -203,9 +203,10 @@ N2O_aquatic$Site <- substr(N2O_aquatic$ID_aq, 1, 4)
 
 # list of unique ID values to loop over
 N2O_ri = unique(N2O_riparian$ID_ri)
+N2O_aq = unique(N2O_aquatic$ID_aq)
 
 # Loop to create and save a plot for each point
-
+#RIPARIAN
 for (i in N2O_ri) {
   
   temp_plot = ggplot(data= subset(N2O_riparian, ID_ri == i)) + 
@@ -215,24 +216,34 @@ for (i in N2O_ri) {
   ggsave(temp_plot, file=paste0("plot_", i,".png"), width = 14, height = 10, units = "cm")
 }
 
-#now figure out a way to save the all of the points at one site on a single page...
-
-for (var in unique(mydata$Variety)) {
-  dev.new()
-  print( ggplot(mydata[mydata$Variety==var,], aes(Var1, Var2)) + geom_point() )
+#AQUATIC
+for (i in N2O_aq) {
+  
+  temp_plot = ggplot(data= subset(N2O_aquatic, ID_aq == i)) + 
+    geom_point(size=3, aes(x=Time, y=N2O_ppm)) +
+    ggtitle(i) +
+    
+    ggsave(temp_plot, file=paste0("plot_", i,".png"), width = 14, height = 10, units = "cm")
 }
 
-
+#now figure out a way to save the all of the points at one site on a single page...
 
 
 ##############################################################################
+###### Calculate the GAS FLUX RATE ###########################################
+##############################################################################
 #### Now convert the data to ug-N/L, get the slope of each relationship of gas concentration over time, and correct by area/volume of chamber###############
 #############################################################################
+# Basically, once you convert the ppm to ug-N/L, you can input into the gasflux package if you set the initial time of each measurement to 0
 
+#you can start by combining the riparian and aquatic data.tables
+names(N2O_aquatic)[names(N2O_aquatic) == "ID_aq"] <- "ID"
+names(N2O_riparian)[names(N2O_riparian) == "ID_ri"] <- "ID" #match the column names so you can rbind them together
+N2O <- rbind(N2O_aquatic, N2O_riparian)
 
 #In order to set the initial time of each measurement to 0: 
 #start by adding a column for epoch time (expressed as seconds since Jan 1, 1970)
-LGR_March2021$epoch_time <- as.integer(as.POSIXct(LGR_March2021$Time), tz="Europe/Paris")
+N2O$epoch_time <- as.integer(as.POSIXct(N2O$Time), tz="Europe/Paris")
 
 #then set  the initial time of each measure to 0h 
 #use Naiara's function to rest the min time to each time
@@ -241,20 +252,38 @@ rescale <- function(x) (x-min(x))
 
 #apply this function to all epoch_time (seconds) of each measure, 
 #and divide by 36000 (hours)
-LGR_March2021 <- setDT(LGR_March2021)[,c("flux_time"):=.(rescale(epoch_time/3600)),by=.(ID)]
+N2O <- setDT(N2O)[,c("flux_time"):=.(rescale(epoch_time/3600)),by=.(ID)]
 
 
 #Convert N2O concentration from ppm to ug-N/L using the ideal gas law (PV=nRT) for input to gasfluxes package. Note that ppm = uL/L
+
 # ug-N/L = ((N2O concentration in ppm  * molecular mass of nitrogen *1 atm )) / (0.08206	L·atm/K·mol * temperature in K )
 
-LGR_March2021$N2O_ug_L <- ((LGR_March2021$N2O_ppm  * 14.0067 *1 )) / (0.082*(LGR_March2021$AmbT_C + 273.15))
+N2O$N2O_ug_L <- ((N2O$N2O_ppm  * 14.0067 *1 )) / (0.082*(N2O$AmbT_C + 273.15))
 
 
+#combine the riparian and aquatic ancillary data
+ancil_dat <- bind_rows(ancil_dat_aquatic, ancil_dat_riparian)
 
-#plot to view
-plot(LGR_March2021$N2O_ug_L ~ LGR_March2021$Time, type="l")
+#Create an ID column that matches the N2O data frame
+#Make a new ID column with the site and point ID 
+ancil_dat$ID<-paste(ancil_dat$siteID_new, ancil_dat$point, sep="_")
+#make soil temp average column
+ancil_dat$soil_temp <- rowMeans(ancil_dat[,c('soil_temp1', 'soil_temp2', 'soil_temp3')], na.rm=TRUE)
+ancil_dat$VWC <- rowMeans(ancil_dat[,c('VWC_1', 'VWC_2', 'VWC_3')], na.rm=TRUE)
 
+#Subset just the useful columns: Date, ID, drying_regime, soil_temp, VWC, Picarro_LGR, total_volume_L, chamber_area_m2, flowing_state, habitat_type, pool_riffle_depth_cm,  
+ancil_dat <- ancil_dat %>% select("date", "ID", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "pool_riffle_depth_cm")
 
+#Subset just the LGR data
+ancil_dat<-ancil_dat[ancil_dat$Picarro_LGR=="LGR",]
 
+#Add a column for the volume (V) and Area (A) by merging and ancil_dat with N2O
+N2O_dat <- merge(ancil_dat, N2O, by="ID")
+
+N2O.results <- gasfluxes(N2O_dat, .id = c("date", "ID"), .V = "total_volume_L", .A = "chamber_area_m2",.times = "flux_time", .C = "N2O_ug_L",method = c("linear"), plot = FALSE) 
+#can turn plot to FALSE if the number of plots was getting out of hand
+
+#getting an error "Error: flux_time not sorted in flux ID 2021-03-24_AL01_A1." need to investigate
 
 
