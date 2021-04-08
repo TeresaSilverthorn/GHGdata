@@ -66,9 +66,9 @@ ancil_dat_riparian$time_end<- as.POSIXct(paste(ancil_dat_riparian$date, ancil_da
 
 #Now, cut the concentration based on the Start and End times from the ancillary data sheet
 
-####### OPTION 1 #############
-### You can do this manually following Naiara's script
-##############################
+####### OPTION 1 #########################################
+### You can do this manually following Naiara's script ###
+##########################################################
 
 # change the time format to "as.POSIXct" time - R's time format.
 LGR_March2021$Time <- as.POSIXct(LGR_March2021$Time, format = "%d/%m/%Y %H:%M:%OS")
@@ -132,21 +132,24 @@ plot(N2O_ppm~ Time, data=AL04_E1)
 LGR_aq<-ancil_dat_aquatic[ancil_dat_aquatic$Picarro_LGR=="LGR",]
 LGR_ri<-ancil_dat_riparian[ancil_dat_riparian$Picarro_LGR=="LGR",]
 
+#Loop to cut N2O concentrations by the start and end times, and create an ID column with the site and point
+
+
+#AQUATIC
+
 #make a new ID column with the site and point ID 
-ID<-paste(LGR_aq$siteID_new,LGR_aq$point,sep="_")
-#ID<-paste(LGR_ri$siteID_new,LGR_ri$point,sep="_")
+ID_aq<-paste(LGR_aq$siteID_new,LGR_aq$point,sep="_")
 
 #Set the start and end times
 startT<-LGR_aq$time_start
 endT<-LGR_aq$time_end
 
-
 for(i in 1:length(startT)){
   st<-startT[i]
   se<-endT[i]
-  id<-ID[i]
+  id<-ID_aq[i]
   data<-LGR_March2021[LGR_March2021$Time >= st & LGR_March2021$Time <= se,]
-  data$ID<-id
+  data$ID_aq<-id
   
   if(i==1){
     assign(paste("data",i, sep="_"),data)
@@ -157,8 +160,68 @@ for(i in 1:length(startT)){
   
 }
 
-FinalTable<-get(paste("data",length(startT),sep="_"))
-FinalTable
+N2O_aquatic<-get(paste("data",length(startT),sep="_"))
+N2O_aquatic
+
+
+#RIPARIAN
+
+#make a new ID column with the site and point ID 
+ID_ri<-paste(LGR_ri$siteID_new,LGR_ri$point,sep="_")
+
+#Set the start and end times
+startT_ri<-LGR_ri$time_start
+endT_ri<-LGR_ri$time_end
+
+for(i in 1:length(startT_ri)){
+  st<-startT_ri[i]
+  se<-endT_ri[i]
+  id<-ID_ri[i]
+  N2Odata_rip<-LGR_March2021[LGR_March2021$Time >= st & LGR_March2021$Time <= se,]
+  N2Odata_rip$ID_ri<-id
+  
+  if(i==1){
+    assign(paste("N2Odata_rip",i, sep="_"),N2Odata_rip)
+  } else {
+    assign(paste("N2Odata_rip",i, sep="_"),N2Odata_rip)
+    assign(paste("N2Odata_rip",i, sep="_"),rbind(get(paste("N2Odata_rip",i, sep="_")),get(paste("N2Odata_rip",i-1, sep="_"))))
+  }
+  
+}
+
+N2O_riparian<-get(paste("N2Odata_rip",length(startT_ri),sep="_"))
+N2O_riparian
+
+##############################################################################
+############# Now make a flux rate figure for each point ####################
+
+#Make ggplots in a loop
+
+#Add a column for site, so you can group the figures by site
+N2O_riparian$Site <- substr(N2O_riparian$ID_ri, 1, 4)
+N2O_aquatic$Site <- substr(N2O_aquatic$ID_aq, 1, 4)
+
+# list of unique ID values to loop over
+N2O_ri = unique(N2O_riparian$ID_ri)
+
+# Loop to create and save a plot for each point
+
+for (i in N2O_ri) {
+  
+  temp_plot = ggplot(data= subset(N2O_riparian, ID_ri == i)) + 
+    geom_point(size=3, aes(x=Time, y=N2O_ppm)) +
+    ggtitle(i) +
+  
+  ggsave(temp_plot, file=paste0("plot_", i,".png"), width = 14, height = 10, units = "cm")
+}
+
+#now figure out a way to save the all of the points at one site on a single page...
+
+for (var in unique(mydata$Variety)) {
+  dev.new()
+  print( ggplot(mydata[mydata$Variety==var,], aes(Var1, Var2)) + geom_point() )
+}
+
 
 
 
