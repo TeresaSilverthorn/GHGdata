@@ -1,8 +1,3 @@
-##########################################################################
-##### Script for importing and processing N2O data from LGR analyzer #####
-##########################################################################
-
-################################
 # Install packages 
 library(lubridate)
 library(ggplot2)
@@ -14,7 +9,7 @@ library(tidyverse)
 library(data.table)
 
 #################################
-######## Import data  ##########
+### Import data  
 #################################
 
 # RAW DATA is in different .txt files 
@@ -40,12 +35,8 @@ LGR_March2021<- subset(LGR_March2021, select = c( "Time", "[N2O]d_ppm", "AmbT_C"
 #Rename the N2O column to get rid of the square brackets because they can cause some issues later
 names(LGR_March2021)[names(LGR_March2021) == "[N2O]d_ppm"] <- "N2O_ppm"
 
-
-################################################################
-# Import the ancillary data files with the start and end times #
-################################################################
-
-#import the ancillary data files for the aquatic and riparian measurements
+#select the time range of each measure
+#start by inputting the ancillary data files
 ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Aquatic 2021.04.02.csv", header=T)
 str(ancil_dat_aquatic)
 
@@ -60,15 +51,9 @@ ancil_dat_aquatic$time_end<- as.POSIXct(paste(ancil_dat_aquatic$date, ancil_dat_
 ancil_dat_riparian$time_start<- as.POSIXct(paste(ancil_dat_riparian$date, ancil_dat_riparian$time_start), format="%Y-%m-%d %H:%M")
 ancil_dat_riparian$time_end<- as.POSIXct(paste(ancil_dat_riparian$date, ancil_dat_riparian$time_end), format="%Y-%m-%d %H:%M")
 
-###########################################################
-######### Cut the N2O ppm data by start and end time ######
-###########################################################
 
-#Now, cut the concentration based on the Start and End times from the ancillary data sheet
-
-####### OPTION 1 #############
-### You can do this manually following Naiara's script
-##############################
+#Cut the concentration based on the Start and End times from the ancillary data sheet
+#You can do this manuallym following Naiara's script
 
 # change the time format to "as.POSIXct" time - R's time format.
 LGR_March2021$Time <- as.POSIXct(LGR_March2021$Time, format = "%d/%m/%Y %H:%M:%OS")
@@ -76,61 +61,12 @@ LGR_March2021$Time <- as.POSIXct(LGR_March2021$Time, format = "%d/%m/%Y %H:%M:%O
 
 write.csv(LGR_March2021, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data/March2021_LGR_data_processed.csv")
 
-
-#Using AL01 2020.03.25 as an example
-
-#RIPARIAN
-AL04_R1<-LGR_March2021[Time >= "2021-03-25 14:47:00" & Time <= "2021-03-25 14:52:00"]
-AL04_R2<-LGR_March2021[Time >= "2021-03-25 14:56:00" & Time <= "2021-03-25 15:01:00"]
-AL04_R3<-LGR_March2021[Time >= "2021-03-25 15:27:00" & Time <= "2021-03-25 15:32:00"]
-AL04_R5<-LGR_March2021[Time >= "2021-03-25 15:56:00" & Time <= "2021-03-25 16:01:00"]
-AL04_R6<-LGR_March2021[Time >= "2021-03-25 16:18:00" & Time <= "2021-03-25 16:23:00"]
-
-#AQUATIC
-AL04_A1<-LGR_March2021[Time >= "2021-03-25 14:40:00" & Time <= "2021-03-25 14:45:00"]
-AL04_B1<-LGR_March2021[Time >= "2021-03-25 15:03:00" & Time <= "2021-03-25 15:08:00"]
-AL04_C1<-LGR_March2021[Time >= "2021-03-25 15:21:00" & Time <= "2021-03-25 15:26:00"]
-AL04_D1<-LGR_March2021[Time >= "2021-03-25 15:50:00" & Time <= "2021-03-25 15:55:00"]
-AL04_E1<-LGR_March2021[Time >= "2021-03-25 16:12:00" & Time <= "2021-03-25 16:17:00"]
-
-
-#create an ID column for each measure
-AL04_R1$ID <- rep("AL04_R1",nrow(AL04_R1)) 
-AL04_R2$ID <- rep("AL04_R2",nrow(AL04_R2))
-AL04_R3$ID <- rep("AL04_R3",nrow(AL04_R3))
-AL04_R5$ID <- rep("AL04_R5",nrow(AL04_R5))
-AL04_R6$ID <- rep("AL04_R6",nrow(AL04_R6))
-
-AL04_A1$ID <- rep("AL04_A1",nrow(AL04_A1)) 
-AL04_B1$ID <- rep("AL04_B1",nrow(AL04_B1)) 
-AL04_C1$ID <- rep("AL04_C1",nrow(AL04_C1)) 
-AL04_D1$ID <- rep("AL04_D1",nrow(AL04_D1)) 
-AL04_E1$ID <- rep("AL04_E1",nrow(AL04_E1)) 
-
-#plot
-par(mfrow=c(2,5), mai = c(.1, .3, .5, .1))
-plot(N2O_ppm~ Time, data=AL04_R1)
-plot(N2O_ppm~ Time, data=AL04_R2)
-plot(N2O_ppm~ Time, data=AL04_R3)
-plot(N2O_ppm~ Time, data=AL04_R5)
-plot(N2O_ppm~ Time, data=AL04_R6)
-plot(N2O_ppm~ Time, data=AL04_A1)
-plot(N2O_ppm~ Time, data=AL04_B1)
-plot(N2O_ppm~ Time, data=AL04_C1)
-plot(N2O_ppm~ Time, data=AL04_D1)
-plot(N2O_ppm~ Time, data=AL04_E1)
-
-
-####### OPTION 2 #############
-### You can automate this process using a loop
-##############################
-
-# It would be faster to automate these steps 
-# Write a loop to clip the [N2O] by start time and end time
+#Write a loop to clip the [N2O] by start time and end time
 
 #start by subsetting just the LGR times
 LGR_aq<-ancil_dat_aquatic[ancil_dat_aquatic$Picarro_LGR=="LGR",]
 LGR_ri<-ancil_dat_riparian[ancil_dat_riparian$Picarro_LGR=="LGR",]
+
 
 #make a new ID column with the site and point ID 
 ID<-paste(LGR_aq$siteID_new,LGR_aq$point,sep="_")
@@ -139,7 +75,6 @@ ID<-paste(LGR_aq$siteID_new,LGR_aq$point,sep="_")
 #Set the start and end times
 startT<-LGR_aq$time_start
 endT<-LGR_aq$time_end
-
 
 for(i in 1:length(startT)){
   st<-startT[i]
@@ -160,11 +95,58 @@ for(i in 1:length(startT)){
 FinalTable<-get(paste("data",length(startT),sep="_"))
 FinalTable
 
+#RIPARIAN
+CA02_R1<-LGR_March2021[Time >= "2021-03-16 10:09:00" & Time <= "2021-03-16 10:14:00"]
+CA02_R2<-LGR_March2021[Time >= "2021-03-16 11:39:00" & Time <= "2021-03-16 11:43:00"]
+CA02_R4<-LGR_March2021[Time >= "2021-03-16 12:14:00" & Time <= "2021-03-16 12:19:00"]
+CA02_R6<-LGR_March2021[Time >= "2021-03-16 14:12:00" & Time <= "2021-03-16 14:17:00"]
+
+#AQUATIC
+CA02_A1<-LGR_March2021[Time >= "2021-03-16 09:53:00" & Time <= "2021-03-16 10:56:00"]
+CA02_B1<-LGR_March2021[Time >= "2021-03-16 10:32:00" & Time <= "2021-03-16 10:37:00"]
+CA02_C1<-LGR_March2021[Time >= "2021-03-16 10:59:00" & Time <= "2021-03-16 11:05:00"]
+CA02_D1<-LGR_March2021[Time >= "2021-03-16 12:26:00" & Time <= "2021-03-16 12:31:00"]
+CA02_E1<-LGR_March2021[Time >= "2021-03-16 13:47:00" & Time <= "2021-03-16 13:52:00"]
+CA02_F1<-LGR_March2021[Time >= "2021-03-16 14:22:00" & Time <= "2021-03-16 14:27:00"]
+
+#create an ID column for each measure
+CA02_R1$ID <- rep("CA02_R1",nrow(CA02_R1)) 
+CA02_R2$ID <- rep("CA02_R2",nrow(CA02_R2))
+CA02_R4$ID <- rep("CA02_R4",nrow(CA02_R4))
+CA02_R6$ID <- rep("CA02_R6",nrow(CA02_R6))
+
+CA02_A1$ID <- rep("CA02_A1",nrow(CA02_A1)) 
+CA02_B1$ID <- rep("CA02_B1",nrow(CA02_B1)) 
+CA02_C1$ID <- rep("CA02_C1",nrow(CA02_C1)) 
+CA02_D1$ID <- rep("CA02_D1",nrow(CA02_D1)) 
+CA02_E1$ID <- rep("CA02_E1",nrow(CA02_E1)) 
+CA02_F1$ID <- rep("CA02_F1",nrow(CA02_F1)) 
 
 
-##############################################################################
-#### Now convert the data to ug-N/L, get the slope of each relationship of gas concentration over time, and correct by area/volume of chamber###############
-#############################################################################
+#plot
+#par(mfrow=c(2,6))
+plot(N2O_ppm~ Time, data=LGR_March2021)
+plot(N2O_ppm~ Time, data=CA02_R2)
+plot(N2O_ppm~ Time, data=CA02_R4)
+plot(N2O_ppm~ Time, data=CA02_R6)
+
+
+plot(N2O_ppm~ Time, data=CA02_A1)
+plot(N2O_ppm~ Time, data=CA02_B1)
+plot(N2O_ppm~ Time, data=CA02_C1)
+plot(N2O_ppm~ Time, data=CA02_D1)
+plot(N2O_ppm~ Time, data=CA02_E1)
+plot(N2O_ppm~ Time, data=CA02_F1)
+
+
+#But it would be faster to automate these steps
+
+
+
+
+
+
+###########################
 
 
 #In order to set the initial time of each measurement to 0: 
