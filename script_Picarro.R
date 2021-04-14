@@ -1,57 +1,4 @@
-library(lubridate)
-
-#########################################
-### load raw data and metadata
-### put the date-time in the same format for all files
-##########################################
-
-#load raw data of each day
-
-raw16March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw16March21.csv", header=T)
-raw17March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw17March21.csv", header=T)
-raw18March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw18March21.csv", header=T)
-raw19March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw19March21.csv", header=T)
-raw22March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw22March21.csv", header=T)
-raw23March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw23March21.csv", header=T)
-raw24March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw24March21.csv", header=T)
-raw25March21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/raw25March21.csv", header=T)
-
-rawMarch21<-rbind(raw16March21,raw17March21,raw18March21,raw19March21,raw22March21,raw23March21,raw24March21,raw25March21)
-str(rawMarch21)
-
-write.csv(rawMarch21,"C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/rawMarch21.csv")
-
-#load metadata
-metadata<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/Campaign1_dataentry.csv", sep=";", header=T)
-str(metadata)
-
-#put date in the same format that raw data files: Y-m-d 
-date_metadata<-format(as.Date(metadata$date,"%d/%m/%Y"),"%Y-%m-%d")
-metadata<-cbind(metadata, date_metadata)
-str(metadata)
-
-metadata$start <- paste(date_metadata, metadata$time_start)
-metadata$end <- paste(date_metadata, metadata$time_end)
-
-#correct time (quit 1h) to fit with picarro data
-metadata$start <- as.POSIXlt(metadata$start) -3600
-metadata$end <- as.POSIXlt(metadata$end ) -3600
-
-str(metadata)
-
-#create unique id and subset only picarro data
-
-metadata$ID<-paste0(metadata$siteID_new,"_",metadata$point)
-metadata_pic <- subset (metadata, Picarro_LGR == "Picarro")
-str(metadata_pic)
-
-write.csv(metadata_pic, "C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/metadata_pic.csv")
-
-#########################################################################
-#### load metadata (start and end points)
-#### load data from the picarro (already joint in one file
-###########################################################
-
+#################
 # Install packages 
 library(lubridate)
 library(ggplot2)
@@ -61,23 +8,83 @@ library(plyr)
 library(gasfluxes)
 library(tidyverse)
 library(data.table)
+####################
 
-metadata_pic<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/metadata_pic.csv")
-rawMarch21<-read.csv("C:/Users/naina/OneDrive/Escritorio/WP3_sampling data/PICARRO_March/rawMarch21.csv")
-head(metadata_pic)
-head(rawMarch21)
 
-# clip the raw data by start time and end time
+#########################################
+### load raw data and metadata
+### put the date-time in the same format for all files
+##########################################
 
-ID <- metadata_pic$ID
-startT<-metadata_pic$start #start times (118)
-endT<-metadata_pic$end  # end times (118)
+#load raw data of each day for the entire campaign
+
+Picarro_March2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+#to include sub-directories, change the recursive T
+str(Picarro_March2021)
+
+# create a column merging date and time
+time<-as.POSIXct(paste(Picarro_March2021$DATE, Picarro_March2021$TIME), format="%Y-%m-%d %H:%M:%S")
+Picarro_March2021<-cbind(Picarro_March2021,time)
+str(Picarro_March2021)
+
+#Since the Picarro data is in GMT time, we need to add one hour to correspond to the actual time (GMT+1 time)
+Picarro_March2021$time<- as.POSIXlt(Picarro_March2021$time) +3600
+
+write.csv(Picarro_March2021,"C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Picarro_raw_March2021.csv")
+
+##########################################################
+#load the ancillary data
+
+ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Aquatic 2021.04.02.csv", header=T)
+str(ancil_dat_aquatic)
+
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Riparian 2021.04.02.csv", header=T)
+str(ancil_dat_riparian)
+
+#add an ID column 
+ancil_dat_aquatic$ID <- paste(ancil_dat_aquatic$siteID_new,ancil_dat_aquatic$point,sep="_")
+ancil_dat_riparian$ID <- paste(ancil_dat_riparian$siteID_new,ancil_dat_riparian$point,sep="_")
+
+#combine the riparian and aquatic ancillary data
+ancil_dat <- bind_rows(ancil_dat_aquatic, ancil_dat_riparian)
+
+#add the date to the start and end time columns for 
+ancil_dat$time_start<- as.POSIXct(paste(ancil_dat$date, ancil_dat$time_start), format="%Y-%m-%d %H:%M")
+ancil_dat$time_end<- as.POSIXct(paste(ancil_dat$date, ancil_dat$time_end), format="%Y-%m-%d %H:%M")
+
+#make soil temp and VWC average column
+ancil_dat$soil_temp <- rowMeans(ancil_dat[,c('soil_temp1', 'soil_temp2', 'soil_temp3')], na.rm=TRUE)
+ancil_dat$VWC <- rowMeans(ancil_dat[,c('VWC_1', 'VWC_2', 'VWC_3')], na.rm=TRUE)
+
+#Subset the ancillary data for only picarro data
+ancil_dat<-ancil_dat[ancil_dat$Picarro_LGR=="Picarro",]
+
+#Subset just the useful columns: Date, ID, drying_regime, soil_temp, VWC, Picarro_LGR, total_volume_L, chamber_area_m2, flowing_state, habitat_type, pool_riffle_depth_cm, time_start, time_end 
+ancil_dat <- ancil_dat %>% select("date", "ID", "time_start", "time_end", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "pool_riffle_depth_cm")
+
+str(ancil_dat) #233 obs
+
+#Since the Picarro failed on 2021-03-23 at CO01, you can delete those rows
+ancil_dat <-subset(ancil_dat, ancil_dat$date != "2021-03-23" | !grepl("CO01", ancil_dat$ID))
+
+str(ancil_dat) #189 obs
+
+write.csv(ancil_dat, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Ancillary_data/Picarro_ancil_dat.csv")
+
+#########################################################################
+#### Clip the data by start and end times ####
+###########################################################
+
+
+ID <- ancil_dat$ID
+startT<-ancil_dat$time_start #start times
+endT<-ancil_dat$time_end  # end times 
 
 for(i in 1:length(startT)){
   st<-startT[i]
   se<-endT[i]
   id<-ID[i]
-  data<-rawMarch21[rawMarch21$time >= st & rawMarch21$time <= se,]
+  data<-Picarro_March2021[Picarro_March2021$time >= st & Picarro_March2021$time <= se,]
   data$ID<-id
   
   if(i==1){
@@ -88,39 +95,62 @@ for(i in 1:length(startT)){
   }
 }
 
-Picarro_flow <-get(paste("data",length(startT),sep="_"))
-str(Picarro_flow) # 38414 obs.
+Picarro_dat<-get(paste("data",length(startT),sep="_"))
+str(Picarro_dat) # 18156 obs.
 
-###########################
-### now we have the data split by times
-##############################
 
 ### there are duplicated time rows in the data, delete them
 
-Picarro_flow2 <- Picarro_flow  %>% 
+Picarro_dat <- Picarro_dat  %>% 
   # Base the removal on the "epoch_time" column
   distinct(EPOCH_TIME, .keep_all = TRUE)
 
-str(Picarro_flow2) # 37989 obs.
+str(Picarro_dat) # 71816 obs.
+
+#################################################
+######### DATA CLEANING #########################
+#################################################
+
+#Now based on gasflux output using the raw data we can use the r2 and visual inspection to flag any problems and modify the start and end times as needed
+
+#first load in those unaltered outputs
+CO2.results_raw <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2.results_raw.csv")
+
+CH4.results_raw <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CH4.results_raw.csv")
+
+#Firstly identify points with an r2 less than 0.90
+#Not sure what we want to do with CO2 uptake? I think this is unlikely, so not sure what is going on 
+CO2_poorfit <- CO2.results_raw[(CO2.results_raw$linear.r <= "0.90") | (CO2.results_raw$linear.r <= "-0.90"), ] 
+#.99/.98 is to restrictive, as many with an r2 of .98/.97/.96/.95 have a good linear relationship, just more noisy
+
+str(CO2_poorfit) #95 obs.
+# Now manually go through these and note which ones need to be clipped earlier or later
+
+#Load the excel sheet with this information
+CO2_QC <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2_fluxrate_QAQC_March2021.csv")
+
+Picarro_dat$flux_time <- ifelse(CO2_QC$Clip ="Start_later", CO2_QC$ID), Picarro_dat$flux_time + 0.008 , Picarro_dat$flux_time)
+
+#I think you need a loop here
+
+###########################
+#### now that we have the data split by start/end times, we can set t0 to 0 hrs ####
+##############################
+
 
 #create function to rest the min time to each time
 rescale <- function(x) (x-min(x))
 
-Picarro_flow3 <- setDT(Picarro_flow2)[,c("flux_time"):=.(rescale(EPOCH_TIME/3600)),by=.(ID)]
-str(Picarro_flow3) # 37989 obs.
+Picarro_dat <- setDT(Picarro_dat)[,c("flux_time"):=.(rescale(EPOCH_TIME/3600)),by=.(ID)]
+str(Picarro_dat) # 71816 obs. 
 
-## keep only the disered columns from picarro data
-Picarro_flow4 <- subset(Picarro_flow3, select = c( "CavityTemp", "CH4_dry", "CO2_dry", "ID", "flux_time"))
-str(Picarro_flow4) # 37989 obs.
+## keep only the desired columns from picarro data
+Picarro_dat <- subset(Picarro_dat, select = c( "CavityTemp", "CH4_dry", "CO2_dry", "ID", "flux_time"))
+str(Picarro_dat) # 71816 obs.
 
-## keep only the disered columns from metadata_pic
-head(metadata_pic)
-metadata_pic2 <- subset(metadata_pic, select = c( "ID", "total_volume_L", "chamber_area_m2"))
+CO2_CH4_dat <- merge (Picarro_dat, ancil_dat , by="ID")
 
-##### merge both files by ID
-
-data_fluxCal<- merge (Picarro_flow4, metadata_pic2 , by="ID")
-
+str(CO2_CH4_dat) # 71816 obs.
 
 
 #############################################
@@ -129,20 +159,20 @@ data_fluxCal<- merge (Picarro_flow4, metadata_pic2 , by="ID")
 
 #put CO2 and CH4 concentration (now in ppm) in mg/L
 # mg/L = ((ppm  * molecular mass *1 atm )/1000) / (0.082 * 293K )
+# ug/L = (ppm  * molecular mass *1 atm ) / (0.082 * 293K )
 
-data_fluxCal$C_CO2_mg_L <- ((data_fluxCal$CO2_dry  * 12 *1 )/1000) / (0.082*(data_fluxCal$CavityTemp + 273))
-data_fluxCal$C_CH4_ug_L <- ((data_fluxCal$CH4_dry  * 12 *1 )) / (0.082*(data_fluxCal$CavityTemp + 273))
+CO2_CH4_dat$CO2_mg_L <- ((CO2_CH4_dat$CO2_dry  * 12.011 *1 )/1000) / (0.082*(CO2_CH4_dat$CavityTemp + 273.15))
+
+CO2_CH4_dat$CH4_ug_L <- (CO2_CH4_dat$CH4_dry  * 12.011 *1 ) / (0.082*(CO2_CH4_dat$CavityTemp + 273.15))
 
 #some values for CO2 or CH4 are < 0 , delete them
 
-data_fluxCal_2<-data_fluxCal[!(data_fluxCal$C_CO2_mg_L<="0")] 
-data_fluxCal_3<-data_fluxCal_2[!(data_fluxCal_2$C_CH4_ug_L<="0")] 
+CO2_CH4_dat<-CO2_CH4_dat[!(CO2_CH4_dat$CO2_mg_L<="0")] 
+CO2_CH4_dat<-CO2_CH4_dat[!(CO2_CH4_dat$CH4_ug_L<="0")] 
 
-str(data_fluxCal) # 37989 obs.
-str(data_fluxCal_2) #  37986 obs. 
-str(data_fluxCal_3) # 37984 obs. 
+str(CO2_CH4_dat) # 71803 obs.
 
-write.csv(data_fluxCal_3, "C:/Users/naina/OneDrive/Escritorio/WP3_data analysis/data_fluxCal_3.csv")
+write.csv(CO2_CH4_dat,"C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2_CH4_dat.csv")
 
 #Check the units
 #V = L
@@ -152,52 +182,67 @@ write.csv(data_fluxCal_3, "C:/Users/naina/OneDrive/Escritorio/WP3_data analysis/
 
 #[f0] = mg/m^2/h
 
-data_fluxCal_3$total_volume_L # 3.5... L
-data_fluxCal_3$chamber_area_m2 # 0.045... m2
-data_fluxCal_3$C_CO2_mg_L # ~2.30 mg/L
-data_fluxCal_3$C_CH4_ug_L # ~1.53 mg/L
-data_fluxCal_3$flux_time # Tfin= 0.0833h = 5min
+mean(CO2_CH4_dat$total_volume_L) # 4.5... L
+mean(CO2_CH4_dat$chamber_area_m2) # 0.045... m2
+median(CO2_CH4_dat$CO2_mg_L) # ~0.23 mg/L          
+median(CO2_CH4_dat$CH4_ug_L) # ~1.53 ug/L         
+mean(CO2_CH4_dat$flux_time) # 0.05h = 3 minutes
 
 
-CO2_FLOW <- gasfluxes(data_fluxCal_3, .id = "ID", 
+CO2.results<- gasfluxes(CO2_CH4_dat, .id = "ID", 
 		.V = "total_volume_L", .A = "chamber_area_m2", 
-		.times = "flux_time",.C = "C_CO2_mg_L", 
-		methods = c("robust linear"))
+		.times = "flux_time",.C = "CO2_mg_L", 
+		methods = c("linear"))
 
-CH4_FLOW <- gasfluxes(data_fluxCal_3, .id = "ID", 
-		.V = "total_volume_L", .A = "chamber_area_m2", 
-		.times = "flux_time",.C = "C_CH4_ug_L", 
-		methods = c("robust linear"))
+#turn plot to F if you don't want plots 
+
+str(CO2.results)
+
+CH4.results <- gasfluxes(CO2_CH4_dat, .id = "ID", 
+		.V = "total_volume_L", .A = "chamber_area_m2",
+		.times = "flux_time",.C = "CH4_ug_L", 
+		methods = c("linear"), plots=TRUE)
+str(CH4.results)
 
 #save model outputs
 
-write.csv (CO2_FLOW, "C:/Users/naina/OneDrive/Escritorio/WP3_data analysis/CO2_FLOW.csv")
-write.csv (CH4_FLOW, "C:/Users/naina/OneDrive/Escritorio/WP3_data analysis/CH4_FLOW.csv")
+write.csv (CO2.results, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2.results.csv")
+
+write.csv (CH4.results, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CH4.results.csv")
+
 
 ##################
-# load those files
+# save CO2 and CH4 fluxes in new file
 
-fluxes_CO2 <- read.csv ("C:/Users/naina/OneDrive/Escritorio/WP3_data analysis/CO2_FLOW.csv")
-str(fluxes_CO2)
+fluxes1 <- CO2.results[, c(1,2)]
+fluxes1 <- setNames(fluxes1, c("ID", "CO2_mg_m2_h"))
 
-fluxes_CH4 <- read.csv ("C:/Users/naina/OneDrive/Escritorio/WP3_data analysis/CH4_FLOW.csv")
-str(fluxes_CH4)
+fluxes2 <- CH4.results[, c(1,2)]
+fluxes2 <- setNames(fluxes2, c("ID", "CH4_ug_m2_h"))
 
-fluxes1 <- fluxes_CO2[, c(2,3)]
-fluxes1 <- setNames(fluxes1, c("ID", "C_CO2_mg_m2_h"))
+CO2_CH4_fluxes <- merge (fluxes1, fluxes2, by= "ID")
+str(CO2_CH4_fluxes)
 
-fluxes2 <- fluxes_CH4[, c(2,3)]
-fluxes2 <- setNames(fluxes2, c("ID", "C_CH4_ug_m2_h"))
+CO2_CH4_fluxes <- CO2_CH4_fluxes  %>%
+  separate(ID, c("site", "point"), "_")
 
-fluxes <- merge (fluxes1, fluxes2, by= "ID")
-str(fluxes)
+CO2_CH4_fluxes$ID<-paste(CO2_CH4_fluxes$site,CO2_CH4_fluxes$point,sep="_")
 
-fluxes <- fluxes  %>%
-  separate(ID, c("SITE", "measure"), "_")
+# attach the ancillary data to it
 
-par(mfrow=c(2,1))
-boxplot(C_CO2_mg_m2_h ~ SITE, data=fluxes)
-boxplot(C_CH4_ug_m2_h ~ SITE, data=fluxes, ylim=c(0, 200))
+ancil_dat_sub<- subset(ancil_dat, select = c("ID", "date", "drying_regime", "soil_temp", "VWC", "flow_state", "habitat_type", "pool_riffle_depth_cm"))
+
+CO2_CH4_fluxes <- merge (CO2_CH4_fluxes, ancil_dat_sub, by= "ID")
+
+write.csv (CO2_CH4_fluxes, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2_CH4_flux.results.csv")
+
+
+dev.off()
+boxplot(CO2_mg_m2_h ~ habitat_type, data= subset(CO2_CH4_fluxes, flowing_state="flowing"))
+
+boxplot(CO2_mg_m2_h ~ drying_regime, data= subset(CO2_CH4_fluxes, flowing_state="flowing"))
+        
+boxplot(CH4_ug_m2_h ~ site, data=CO2_CH4_fluxes, ylim=c(-200, 200))
 
 
 
