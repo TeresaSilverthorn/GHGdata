@@ -35,10 +35,10 @@ write.csv(Picarro_March2021,"C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)
 ##########################################################
 #load the ancillary data
 
-ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Aquatic 2021.04.02.csv", header=T)
+ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Aquatic 2021.04.19.csv", header=T)
 str(ancil_dat_aquatic)
 
-ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Riparian 2021.04.02.csv", header=T)
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Riparian 2021.04.19.csv", header=T)
 str(ancil_dat_riparian)
 
 #add an ID column 
@@ -69,7 +69,11 @@ ancil_dat <-subset(ancil_dat, ancil_dat$date != "2021-03-23" | !grepl("CO01", an
 
 str(ancil_dat) #189 obs
 
-write.csv(ancil_dat, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Ancillary_data/Picarro_ancil_dat.csv")
+write.csv(ancil_dat, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Picarro_ancil_dat.csv")
+
+#data cleaning : check if there are any super long or super short intervals (potentially typos) 
+
+ancil_dat$int <- difftime(ancil_dat$time_end, ancil_dat$time_start, unit = "mins")
 
 #########################################################################
 #### Clip the data by start and end times ####
@@ -96,7 +100,7 @@ for(i in 1:length(startT)){
 }
 
 Picarro_dat<-get(paste("data",length(startT),sep="_"))
-str(Picarro_dat) # 18156 obs.
+str(Picarro_dat) # 72158 obs
 
 
 ### there are duplicated time rows in the data, delete them
@@ -105,7 +109,8 @@ Picarro_dat <- Picarro_dat  %>%
   # Base the removal on the "epoch_time" column
   distinct(EPOCH_TIME, .keep_all = TRUE)
 
-str(Picarro_dat) # 71816 obs.
+str(Picarro_dat) # 	72144 obs. #14
+
 
 #################################################
 ######### DATA CLEANING #########################
@@ -129,9 +134,51 @@ str(CO2_poorfit) #95 obs.
 #Load the excel sheet with this information
 CO2_QC <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2_fluxrate_QAQC_March2021.csv")
 
-Picarro_dat$flux_time <- ifelse(CO2_QC$Clip ="Start_later", CO2_QC$ID), Picarro_dat$flux_time + 0.008 , Picarro_dat$flux_time)
+#Picarro_dat$flux_time <- ifelse(CO2_QC$Clip ="Start_later", CO2_QC$ID), #Picarro_dat$flux_time + 0.008 , Picarro_dat$flux_time)
 
 #I think you need a loop here
+
+
+CO2_QC_start<-CO2_QC[CO2_QC$Clip == "start_later" ,]
+CO2_QC__end<-CO2_QC[CO2_QC$Clip == "end_earlier" ,]
+
+ID <- ancil_dat$ID
+clip_start<-CO2_QC_start$ID
+clip_end<-CO2_QC__end$ID
+
+for(i in 1:length(clip_start)){
+  clip_st<-clip_start[i]
+  id<-ID[i]
+  data<-Picarro_dat[ancil_dat$time_start >= ,]
+  data$ID<-id
+  
+  if(i==1){
+    assign(paste("data",i, sep="_"),data)
+  } else {
+    assign(paste("data",i, sep="_"),data)
+    assign(paste("data",i, sep="_"),rbind(get(paste("data",i, sep="_")),get(paste("data",i-1, sep="_"))))
+  }
+}
+
+Picarro_dat<-get(paste("data",length(startT),sep="_"))
+str(Picarro_dat) # 18156 obs.
+
+
+
+IF ID in ancil date = (list), then add 30 scond to time_start, if not leave
+
+
+
+ancil_dat$time_start_adj <- ifelse(charmatch(CO2_QC_start$ID, ancil_dat$ID), ancil_dat$time_start + 30, ancil_dat$time_start)
+
+
+chrs <- (charmatch(as.character(CO2_QC_start$ID), as.character(ancil_dat$ID)))
+
+#charmatch which seeks matches for the elements of its first argument among those of its second
+
+
+
+
 
 ###########################
 #### now that we have the data split by start/end times, we can set t0 to 0 hrs ####
@@ -152,6 +199,71 @@ CO2_CH4_dat <- merge (Picarro_dat, ancil_dat , by="ID")
 
 str(CO2_CH4_dat) # 71816 obs.
 
+
+################## Make flux figures ###################
+
+ID <- unique(CO2_CH4_dat$ID)
+
+for (i in ID) {
+  CO2_plot = ggplot(data=subset(CO2_CH4_dat, ID==i)) + 
+    geom_point(size=1, aes(x=flux_time, y=CO2_dry)) +
+    ggtitle(i) } + ### Stop here, then run the next part
+  
+  
+  ggsave(CO2_plot, path="C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Flux_figures", 
+         file=paste0("plot_", i,".pdf"), width = 7, height = 5, units = "cm")
+}
+  
+############################################################
+#### Finding breakpoints and creating new start/end times #
+############################################################
+
+### EXAMPLE FOR RA01_B1 
+RA01_B1<-subset(data_fluxCal_3,ID== "RA01_B1") #ONE MEASURE OF 1 SITE
+fit0<-lm(C_CH4_ug_L ~flux_time, data=RA01_B1) #SIMPLE LINEAR MODEL
+fit1 <- segmented(fit0, seg.Z = ~ flux_time, psi = list(flux_time = c(0.005, 0.08))) # PSI??? HERE IS THE ERROR WHEN RUNNING THE LOOP
+summary(fit1) #SHOWS YOU THE BREAKING POINT(S)
+plot(C_CH4_ug_L ~flux_time, data=RA01_B1) #BASIC PLOT
+lines(RA01_B1$flux_time, predict(fit1), col = "red", lwd=5) # ADD LINES FROM SEGMENTED FIT
+
+
+## Loop that almost works
+#### try to create loop to include slope-breaking points
+# FAIL BY NOW
+
+library(segmented)
+
+for (i in ID) {
+  fit0<-lm(C_CO2_mg_L ~flux_time, data=subset(data_fluxCal_3,ID== i))
+  fit1 <- segmented(fit0, seg.Z = ~ flux_time, psi = list(flux_time = c(0.005, 0.08)))
+  CO2_plot = ggplot(data=subset(data_fluxCal_3, ID==i)) +
+    geom_point(size=1, aes(x=flux_time, y=C_CO2_mg_L)) +
+    ggtitle(i) +
+    geom_line(data=subset(data_fluxCal_3,ID== i), aes(x=flux_time, y=predict(fit1)), col = "red", lwd=1.5) +
+    
+    ggsave(CO2_plot, path="C:/Users/naina/OneDrive/Escritorio/WP3_data analysis/flux_figures/lines_fit_CO2", 
+           file=paste0("plot_", i,".pdf"), width = 14, height = 10, units = "cm") 
+}	
+
+
+
+## Romain's loop
+
+install.packages("segmented")
+library(segmented)
+
+ID <- unique(Picarro_dat$ID)
+for (i in ID) {
+  i=1
+  ###RA01_B1
+  IDd<-ID[i]
+  x<-subset(Picarro_dat,ID== IDd)
+  fit0<-lm(CO2_dry ~time, data=x)
+  fit1 <- segmented(fit0, seg.Z = ~ time, psi = 1)
+  summary(fit1)
+  plot(C_CH4_ug_L ~flux_time, data=RA01_B1)
+  
+  
 
 #############################################
 ### flux calculations                    ####
@@ -201,8 +313,7 @@ str(CO2.results)
 CH4.results <- gasfluxes(CO2_CH4_dat, .id = "ID", 
 		.V = "total_volume_L", .A = "chamber_area_m2",
 		.times = "flux_time",.C = "CH4_ug_L", 
-		methods = c("linear"), plots=TRUE)
-str(CH4.results)
+		methods = c("linear"), plot=FALSE)
 
 #save model outputs
 
