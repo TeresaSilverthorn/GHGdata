@@ -3,6 +3,9 @@ library(ggpmisc)
 library(ggplot2)
 library(tidyverse)
 library(ggpubr)
+library(wesanderson)
+library(forcats)
+library(cowplot)
 
 
 # Load in Picarro flux results 
@@ -15,14 +18,51 @@ str(CO2_CH4)
 CO2_CH4 <- CO2_CH4 %>% mutate (ecosystem=ifelse(flow_state=="flowing", "aquatic", "riparian"))
 CO2_CH4$ecosystem[is.na(CO2_CH4$ecosystem)] <- "riparian"
 
+######### Change units ################
+# CO2 fluxes are typically reported as g CO2-C / m2 / d 
+CO2_CH4$CO2_g_m2_d <- (CO2_CH4$CO2_mg_m2_h * 24)/ 1000
+
+# CH4 fluxes are typically reported as mg CH4-C / m2 / d
+CO2_CH4$CH4_mg_m2_d <- (CO2_CH4$CH4_ug_m2_h * 24) /1000
+
 ######### Clean ########################
 
-#Subset only positive CO2 values # Look into whether or not these values are valid...
+#Should we subset only positive CO2 values # Look into whether or not these values are valid... #No, studies only have positive CO2
 
 CO2_CH4 <- CO2_CH4 %>% filter(CO2_mg_m2_h > 0)
 str(CO2_CH4)
 
+#Most study values below around 10/20 CO2, so look into the two outliers...
+
 ################ Exploratory figures #############################
+
+########################################
+# Compare riparian and aquatic fluxes
+
+CO2_comp <- ggplot(CO2_CH4, aes(x=ecosystem, y=CO2_g_m2_d)) + 
+   geom_boxplot(aes(fill=drying_regime), outlier.shape = NA) + geom_point(aes(colour=drying_regime, fill=drying_regime), shape=21, colour="black", position = position_jitterdodge(jitter.width=0.1))  +
+  theme_pubr()  + theme(axis.title.x = element_blank())  + theme(legend.title = element_blank()) + scale_fill_manual(values = wes_palette("FantasticFox1", n = 3)) +  theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))+ ylab(expression(g~CO[2]*`-C`~m^-2*~d^-1)) + 
+  scale_y_continuous(limits = c(0,20.5)) +
+  annotate("text", x = 1.16, y = 20.2, label=sprintf('\u2191')) +
+  annotate("text", x = 1.28, y = 20, label="37, 43") +
+  theme(plot.title = element_text(hjust = 0.5))
+CO2_comp 
+
+CH4_comp <- ggplot(CO2_CH4, aes(x=ecosystem, y=CH4_mg_m2_d)) + 
+  geom_hline(yintercept=0, linetype="dashed", color = "black", size=0.5) +
+  geom_boxplot(aes(fill=drying_regime), outlier.shape = NA) + geom_point(aes(colour=drying_regime, fill=drying_regime), shape=21, colour="black", position = position_jitterdodge(jitter.width=0.1))  +
+ theme_pubr()  + theme(axis.title.x = element_blank())  + theme(legend.title = element_blank()) + scale_fill_manual(values = wes_palette("FantasticFox1", n = 3)) +  theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))+ ylab(expression(g~CO[2]*`-C`~m^-2*~hr^-1)) +  theme(plot.title = element_text(hjust = 0.5)) + ylab(expression(mg~CH[4]*`-C`~m^-2~d^-1)) +  theme(plot.title = element_text(hjust = 0.5))
+CH4_comp 
+
+
+#### Now combine the CO2 and CH4 files
+
+jpeg(file = "CO2_CH4_comp.jpeg", width=6, height=8, units="in", res=1500) 
+plot <- ggarrange(CO2_comp , CH4_comp,  nrow=2, common.legend = TRUE, legend="top", labels="AUTO")
+plot
+dev.off()
+
+########################################
 
 #### AQUATIC ####
 #Subset the aquatic data
