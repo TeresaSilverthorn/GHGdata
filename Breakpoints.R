@@ -11,12 +11,143 @@ library(tidyr)
 library(dplyr)
 library(purrr)
 
-########################
-# Read in the CO2/CH4 data as well as the N2O data
+#########################################
+## reclipping the data based on dpseg  ##
+#########################################
 
-dat<- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2_CH4_dat.csv", header=T)
 
-###############################################
+#load the data for flux calculations 
+# I have already got rid of the first and last 30 secs
+# the two measures with few data points are already deleted (BU02_A1, BU02_B1)
+
+data_fluxCal_4<-read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2_CH4_dat_forbreakpoints.csv", header=T) 
+str(data_fluxCal_4)
+
+# I don´t know why I have the columns X.1 and X, but it doesn´t matter
+
+#'data.frame':   30837 obs. of  13 variables:
+# $ X.1            : int  1 2 3 4 5 6 7 8 9 10 ...
+# $ X              : int  1 2 3 4 5 6 7 8 9 10 ...
+# $ ID             : chr  "AL01_A1" "AL01_A1" "AL01_A1" "AL01_A1" ...
+# $ time           : chr  "2021-03-24 09:41:30" "2021-03-24 09:41:31" "2021-03-24 09:41:32" "2021-03-24 09:41:33" ...
+# $ CavityTemp     : num  12.5 12.5 12.5 12.5 12.5 ...
+# $ CH4_dry        : num  3 3 3 3 3 ...
+# $ CO2_dry        : num  459 459 459 459 460 ...
+# $ flux_time      : num  0 0.000278 0.00054 0.000788 0.001047 ...
+# $ siteID_new     : chr  "AL01" "AL01" "AL01" "AL01" ...
+# $ total_volume_L : num  3.5 3.5 3.5 3.5 3.5 ...
+# $ chamber_area_m2: num  0.0452 0.0452 0.0452 0.0452 0.0452 ...
+# $ C_CO2_mg_L     : num  0.235 0.235 0.235 0.235 0.236 ...
+# $ C_CH4_ug_L     : num  1.54 1.54 1.54 1.54 1.54 ...
+
+
+### select one measure (do it for one and then incorporate this procedure to the nested data
+BR02_A1<-subset(data_fluxCal_4,ID== "BR02_A1")
+
+#split the fit in different segments
+BR02_A1_dpseg <- dpseg(x=BR02_A1$flux_time,
+                       y=BR02_A1$CO2_dry,
+                       jumps = FALSE, #TRUE allows disconnected segments
+                       P = round(estimateP(x=BR02_A1$flux_time, y=BR02_A1$CO2_dry,4)), # break-point penalty, higher number gives shorter segments
+                       minl=60) # minimum number of points (for us, 60points = 60 secs = 1min)
+
+#save the values of the segments in a data.frame
+segments <- BR02_A1_dpseg$segments
+
+#create a new data table to store the new_start and new_end points
+new_flux <- data.frame(matrix(ncol = 3, nrow = 1))
+colnames(new_flux) <- c('ID', 'new_start', 'new_end')
+
+#select the start and end points of the segment with the highest slope
+
+new_start <-segments[which.max(segments$slope),1] # 1st column (start) of the segment with max slope
+new_end <- segments[which.max(segments$slope),2] # 2nd column (end) of the segment with max slope
+
+# fill the data table with put these values in the new_flux data table
+new_flux$ID <- unique(BR02_A1$ID)
+new_flux$new_start <- new_start 
+new_flux$new_end <- new_end 
+
+# we can then use this new data.table to re-clip the original Picarro data with this start and end points
+# we need to check if it is better to have the epoch time column instead of the flux_time (already re-escaled)
+# We would need to re-escale the new clipped data again to run the gasfluxes package
+
+#####################################
+# next step: NESTED DATA         ####
+#####################################
+
+# nest data by ID
+
+dataFlux_nested <- data_fluxCal_4 %>% 
+  group_by(ID) %>% 
+  nest()
+
+# functions to split the fit in segments and select the data frame with the segments
+
+CO2_seg <- function(x) { (dpseg(x=x$flux_time,
+                                y=x$CO2_dry,
+                                jumps = FALSE, 
+                                P = 1e-4,
+                                minl=60))$segments }
+
+CH4_seg <- function(x) { (dpseg(x=x$flux_time,
+                                y=x$CH4_dry,
+                                jumps = FALSE, 
+                                P = 1e-4,
+                                minl=60))$segments }
+
+# apply functions to nested data, store the results in CO2/CH4_segments 
+
+dataFlux_nested_segs<- dataFlux_nested %>%  
+  mutate(CO2_segments  = map(data, CO2_seg)) %>% 
+  mutate(CH4_segments = map(data, CH4_seg))
+
+# create new data frame to store the new start and end points of each ID
+
+new_flux <- data.frame(matrix(ncol = 5, nrow = 203)) #110= number of IDs
+colnames(new_flux) <- c("ID", "new_start_CO2", "new_end_CO2","new_start_CH4", "new_end_CH4")
+
+#fill the data table with IDs
+new_flux$ID <- unique(dataFlux_nested$ID)
+
+#functions to select the start and end points with highest slope
+
+start<- function(x) { 
+  x[which.max(x$slope),1] } # 1st column (start) of the segment with max slope
+end<- function(x) { 
+  x[which.max(x$slope),2] } # 2nd column (end) of the segment with max slope
+
+
+# add columns with this information to nested data
+dataFlux_nested_time<- dataFlux_nested_segs %>%  
+  mutate(CO2_start  = map(CO2_segments , start)) %>% 
+  mutate(CH4_start  = map(CH4_segments , start)) %>% 
+  mutate(CO2_end  = map(CO2_segments , end)) %>% 
+  mutate(CH4_end  = map(CH4_segments , end))
+
+# unnest the data regarding new start and ed points
+# not sure if this step is neccesary 
+dataFlux_unnested_time <- dataFlux_nested_time %>% 
+  unnest(CO2_start) %>% 
+  unnest(CH4_start) %>% 
+  unnest(CO2_end) %>% 
+  unnest(CH4_end)
+
+# put this info in the new_flux data table
+
+new_flux$new_start_CO2 <- dataFlux_unnested_time$CO2_start
+new_flux$new_end_CO2 <- dataFlux_unnested_time$CO2_end
+new_flux$new_start_CH4 <- dataFlux_unnested_time$CH4_start
+new_flux$new_end_CH4 <- dataFlux_unnested_time$CH4_end
+
+
+
+################################
+################################
+######## end of Naiara's new script #################
+
+
+
 
 #try the dpseg package 
 
