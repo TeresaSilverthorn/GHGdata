@@ -1,6 +1,10 @@
 ##########################################################################
 ##### Script for importing and processing N2O data from LGR analyzer #####
 ##########################################################################
+#Notes
+
+# You need to calculate the time difference between the start/end times and the LGR time for each campaign-
+
 
 ################################
 # Install packages 
@@ -12,32 +16,62 @@ library(plyr)
 library(gasfluxes)
 library(tidyverse)
 library(data.table)
+library(stringr)
+library(car)
+library(dpseg)
 
 #################################
 ######## Import data  ##########
 #################################
 
+
+# load all the data files from each campaign 
 # RAW DATA is in different .txt files 
-# load all the files
 # Due to the metadata at the end of the files, must use fread() which automatically cuts it out
 
-#Input and combine all the files for the entire first campaign
-LGR_March2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
-str(LGR_March2021) #131258 obs. or 36 vars
+
+#Campaign 1 (March 16 - 25, 2021) 
+
+LGR_MAR2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data_MAR2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
+str(LGR_MAR2021) #131258 obs. or 36 vars
+
+
+#Campaign 3 (June 21, 2021 - July 1, 2021) 
+LGR_JUN2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign3_raw_data_JUN2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
+str(LGR_JUN2021) #130263 obs. of  36 vars
+
+
+#Campaign 5 (September 13 - 21, 2021) 
+
+LGR_SEP2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign5_raw_data_SEP2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
+str(LGR_SEP2021) #57406 obs. of  36 vars 
+#A bit suspicious that there are hald as many observations, but I guess I made fewer measurements over time. 
+
+
+#Campaign 7 (November 2021 22 - December 1, 2021) 
+# Yet to come 
+
+#############################################################################
+
+##### Combine (vertically) all of the data from each of the campaigns #######
+
+#Combine the campaigns together vertically
+LGR_2021 <- rbind(LGR_MAR2021,LGR_JUN2021, LGR_SEP2021)
+str(LGR_2021) #318927 obs. of  36 variables
 
 #Subset just the useful columns (Time, [N2O]d_ppm, AmbT_C)
-LGR_March2021<- subset(LGR_March2021, select = c( "Time", "[N2O]d_ppm", "AmbT_C"))
-str(LGR_March2021) #131258 obs. of  3 variables
+LGR_2021<- subset(LGR_2021, select = c( "Time", "[N2O]d_ppm", "AmbT_C"))
+str(LGR_2021) #318927 obs. of  3 variables
 
 #Rename the N2O column to get rid of the square brackets because they can cause some issues later
-names(LGR_March2021)[names(LGR_March2021) == "[N2O]d_ppm"] <- "N2O_ppm"
+names(LGR_2021)[names(LGR_2021) == "[N2O]d_ppm"] <- "N2O_ppm"
 
 # change the time format to "as.POSIXct" time - R's time format
 options(digits.secs=3) # this keeps the 3 decimal second fractions
-LGR_March2021$Time <- as.POSIXct(LGR_March2021$Time, format = "%d/%m/%Y %H:%M:%OS", tz="Europe/Paris")
+LGR_2021$Time <- as.POSIXct(LGR_2021$Time, format = "%d/%m/%Y %H:%M:%OS", tz="Europe/Paris")
 
 
-#write.csv(LGR_March2021, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/March2021_LGR_data_processed.csv")
+write.csv(LGR_2021, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/LGR_data_processed2021.csv")
 
 
 ################################################################
@@ -45,11 +79,12 @@ LGR_March2021$Time <- as.POSIXct(LGR_March2021$Time, format = "%d/%m/%Y %H:%M:%O
 ################################################################
 
 #import the ancillary data files for the aquatic and riparian measurements
-ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Aquatic 2021.04.19.csv", header=T)
-str(ancil_dat_aquatic) #231 obs. of  18 variables
 
-ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Ancillary_data/Campaign1_dataentry - Riparian 2021.04.19.csv", header=T)
-str(ancil_dat_riparian) #225 obs. of  25 variables:
+ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_aquatic_2021-11-18.csv", header=T)
+str(ancil_dat_aquatic) #997 obs. of  43 variables
+
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_aquatic_2021-11-18.csv", header=T)
+str(ancil_dat_riparian) #225 obs. of  25 variables
 
 #the 2021-04-19 data was updated to correct the errors in inputting the times as per the checks below
 
@@ -137,7 +172,7 @@ ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL06_A1"), ancil_d
 
 ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL06_F1"), ancil_dat$time_start +125 , ancil_dat$time_start)
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL07_R1"), ancil_dat$time_start +30 , ancil_dat$time_start)
+ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL07_R1"), ancil_dat$time_start +10 , ancil_dat$time_start)
 
 ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BR01_A1"), ancil_dat$time_start +30 , ancil_dat$time_start)
 
@@ -200,7 +235,7 @@ ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_R1"), ancil_dat
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_R2"), ancil_dat$time_end - 60 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_R6"), ancil_dat$time_end - 30 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_R6"), ancil_dat$time_end - 55 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_C1"), ancil_dat$time_end - 20 , ancil_dat$time_end)
 
@@ -246,13 +281,13 @@ ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_E1"), ancil_dat
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_R2"), ancil_dat$time_end - 42 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_R4"), ancil_dat$time_end - 100 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_R4"), ancil_dat$time_end - 160 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_R5"), ancil_dat$time_end - 40 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_A1"), ancil_dat$time_end - 120 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_A1"), ancil_dat$time_end - 122 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_C1"), ancil_dat$time_end - 15 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_C1"), ancil_dat$time_end - 40 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_E1"), ancil_dat$time_end - 42 , ancil_dat$time_end)
 
@@ -266,7 +301,7 @@ ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR01_R3"), ancil_dat
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_A1"), ancil_dat$time_end - 10 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_E1"), ancil_dat$time_end - 45 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_E1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_R1"), ancil_dat$time_end - 170 , ancil_dat$time_end)
 
@@ -324,7 +359,9 @@ ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA02_R2"), ancil_dat
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CO01_E1"), ancil_dat$time_end - 38 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CO01_R3"), ancil_dat$time_end - 60 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CO01_R3"), ancil_dat$time_end - 125 , ancil_dat$time_end)
+
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CO01_R5"), ancil_dat$time_end - 10 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "GR01_B1"), ancil_dat$time_end - 10 , ancil_dat$time_end)
 
@@ -342,7 +379,7 @@ ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_A1"), ancil_dat
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_C1"), ancil_dat$time_end - 50 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_D1"), ancil_dat$time_end - 30 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_D1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_E1"), ancil_dat$time_end - 30 , ancil_dat$time_end)
 
@@ -352,13 +389,13 @@ ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_R3"), ancil_dat
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_R5"), ancil_dat$time_end - 30 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RA01_A1"), ancil_dat$time_end - 30 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RA01_A1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_A1"), ancil_dat$time_end - 28 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_A1"), ancil_dat$time_end - 35 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RA01_D1"), ancil_dat$time_end - 100 , ancil_dat$time_end)
 
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_A1"), ancil_dat$time_end - 40 , ancil_dat$time_end)
+ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_A1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
 
 ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_D1"), ancil_dat$time_end - 55 , ancil_dat$time_end)
 
@@ -375,24 +412,32 @@ str(ancil_dat) #223 obs.
 
 ########### More data cleaning - removing points ############
 # Some data points are such crap that we need to completely exclude the entire point
+#Or in some cases the data set is too short (perhaps because the N2O wasn't warmed up yet and we started mesuring)
 
 ancil_dat <- ancil_dat %>%
   filter(!ID == "AL01_B1")%>%
+  filter(!ID == "AL02_B1")%>%
   filter(!ID == "AL02_R3")%>%
   filter(!ID == "AL02_R4")%>%
   filter(!ID == "AL04_E1")%>%
+  filter(!ID == "AL05_R2")%>%
   filter(!ID == "AL05_R3")%>%
   filter(!ID == "AL06_A1")%>%
+  filter(!ID == "AL06_R4")%>%
   filter(!ID == "BR01_B1")%>%
   filter(!ID == "BR01_C1")%>%
   filter(!ID == "BR01_R2")%>%
   filter(!ID == "BR02_A1")%>%
+  filter(!ID == "BU01_R6")%>%
   filter(!ID == "BU02_E1")%>%
   filter(!ID == "CA01_E1")%>%
+  filter(!ID == "CA02_A1")%>%
   filter(!ID == "CA02_C1")%>%
   filter(!ID == "CA02_E1")%>%
   filter(!ID == "CA02_R1")%>%
+  filter(!ID == "CA02_R5")%>% #too short
   filter(!ID == "CA02_R6")%>%
+  filter(!ID == "CO01_C1")%>%
   filter(!ID == "CO01_F1")%>%
   filter(!ID == "GR01_A1")%>%
   filter(!ID == "GR01_C1")%>%
@@ -400,10 +445,13 @@ ancil_dat <- ancil_dat %>%
   filter(!ID == "GR01_E1")%>%
   filter(!ID == "GR01_R4")%>%
   filter(!ID == "JO01_R6")%>%
+  filter(!ID == "JO01_R7")%>%
   filter(!ID == "RO01_R1")%>%
   filter(!ID == "RO01_R4")%>%
+  filter(!ID == "RO01_R6")%>%
   filter(!ID == "VI01_B1")%>%
-  filter(!ID == "VI01_R1")%>%
+  filter(!ID == "VI01_C1")%>%
+  filter(!ID == "VI01_R1")%>% #too short
   filter(!ID == "VI01_R2")%>%
   filter(!ID == "VI01_R3")%>%
   filter(!ID == "VI01_R4")%>%
@@ -629,7 +677,7 @@ str(N2O_dat) #69483 obs., therefore 7 obs. removed
 #V = L
 #A = m2
 # flux time = h
-# concentration of CO2 / CH4 = mg/L
+# concentration of N2O = mg/L
 
 #[f0] = mg/m^2/h
 
@@ -644,9 +692,23 @@ mean(N2O_dat$flux_time) # 0.05h = 3 minutes
 N2O_dat_order <- data.table(N2O_dat, key = c("ID", "flux_time"))
 
 #Run the package to calculate the gas flux rate
-N2O.results <- gasfluxes(N2O_dat_order, .id = "ID", .V = "total_volume_L", .A = "chamber_area_m2",.times = "flux_time", .C = "N2O_ug_L",method = c("linear"), plot = TRUE) #can turn plot to FALSE if the number of plots was getting out of hand
+N2O.results <- gasfluxes(N2O_dat_order, .id = "ID", .V = "total_volume_L", .A = "chamber_area_m2",.times = "flux_time", .C = "N2O_ug_L",method = c("linear"), plot = F) #can turn plot to FALSE if the number of plots was getting out of hand
 N2O.results
 str(N2O.results) #221 obs. --should be 223-- because 1 BR01_R1 and JO01_R6 are missing
+
+
+
+#fluxes1 <- setNames(fluxes1, c("ID", "CO2_mg_m2_h"))
+
+#CO2_CH4_fluxes <- CO2_CH4_fluxes  %>%
+  separate(ID, c("site", "point"), "_")
+
+#CO2_CH4_fluxes$ID<-paste(CO2_CH4_fluxes$site,CO2_CH4_fluxes$point,sep="_")
+
+# attach the ancillary data to it
+
+
+
 
 
 # attach the ancillary data to it
@@ -654,8 +716,9 @@ ancil_dat_sub<- subset(ancil_dat, select = c("ID", "date", "Site", "drying_regim
 
 N2O_fluxes <- merge (N2O.results, ancil_dat_sub, by= "ID")
 
-write.csv (N2O_fluxes, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/CO2_CH4_flux.results.csv")
+write.csv (N2O_fluxes, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/N2O_flux.results.csv")
 
+dev.off()
 
 boxplot(linear.f0 ~ habitat_type, data= subset(N2O_fluxes, flowing_state="flowing"))
 

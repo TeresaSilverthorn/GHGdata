@@ -8,8 +8,9 @@ library(plyr)
 library(gasfluxes)
 library(tidyverse)
 library(data.table)
-library(googlesheets4)
 library(stringr)
+library(car)
+library(dpseg)
 
 #########################################
 
@@ -68,8 +69,11 @@ str(Picarro_2021) #250576
 #load the ancillary data
 ##########################################################
 
-#Import ancillary data from google sheet "GHG_data_entry_2021"
-ancil_dat_riparian <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign2_raw_data/GHG_data_entry_2021 - Riparian.csv")
+#Import ancillary data "GHG_data_entry_2021"
+ancil_dat_riparian <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign2_raw_data/GHG_data_entry_2021 - Riparian.csv") 
+
+# FOR THE MOST UPDATED VERSION, CHANGE THIS FILE PATH TO : "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_aquatic_2021-11-18.csv"
+
 ancil_dat_aquatic <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign2_raw_data/GHG_data_entry_2021 - Aquatic.csv")
 
 #add an ID column  #Could consider adding date to the ID column, but instead maybe subset by campaign, and run the loop separately for each campaign
@@ -90,7 +94,7 @@ ancil_dat$VWC <- rowMeans(ancil_dat[,c('VWC_1', 'VWC_2', 'VWC_3')], na.rm=TRUE)
 #Subset the ancillary data for only picarro data
 ancil_dat<-ancil_dat[ancil_dat$Picarro_LGR=="Picarro",]
 
-str(ancil_dat)
+str(ancil_dat) # 443 obs.
 
 #Subset just the useful columns: Date, ID, drying_regime, soil_temp, VWC, Picarro_LGR, total_volume_L, chamber_area_m2, flowing_state, habitat_type, pool_riffle_depth_cm, time_start, time_end 
 ancil_dat <- ancil_dat %>% select("ID_unique", "date", "campaign", "ID", "time_start", "time_end", "drying_regime", "soil_temp", "VWC", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "pool_riffle_depth_cm")
@@ -167,8 +171,6 @@ str(Picarro_dat_camp1) # 54975 obs.
 
 
 
-
-
 ###   CAMPAIGN 2 ######
 #Subset the first campaign
 ancil_dat_2 <- ancil_dat[ which(ancil_dat$campaign==2), ]
@@ -194,7 +196,7 @@ for(i in 1:length(startT)){
 
 Picarro_dat_camp2<-get(paste("data",length(startT),sep="_"))
 str(Picarro_dat_camp2) # 55279 obs.
-###############################################################################
+
 
 
 #################################################
@@ -306,6 +308,204 @@ CO2_CH4_dat_camp2 <- merge (Picarro_dat_camp2, ancil_dat_2 , by="ID", allow.cart
 
 str(CO2_CH4_dat_camp1) # 57934 
 str(CO2_CH4_dat_camp2) # 55544
+
+############################################################################
+# delete clear outliers (CO2 and CH4 data that is not real)
+# this will make the plots more "clean"
+
+str(CO2_CH4_dat_camp1) #57934 obs.
+str(CO2_CH4_dat_camp2) #55544 obs.
+
+#For Campaign 1:
+#CO2
+
+outliers_CO2_1<- Boxplot(CO2_CH4_dat_camp1$CO2_dry ~ ID , data=CO2_CH4_dat_camp1)
+CO2_dat_camp1<- CO2_CH4_dat_camp1 %>%
+  filter(!row_number() %in% outliers_CO2_1)
+str(CO2_dat_camp1) #57755 obs., therefore 179 obs removed for CO2 for Camp 1 
+
+
+#CH4
+outliers_CH4_1<- Boxplot(CO2_CH4_dat_camp1$CH4_dry ~ ID , data=CO2_CH4_dat_camp1)
+CO2_CH4_dat_camp1<- CO2_dat_camp1 %>%
+  filter(!row_number() %in% outliers_CH4_1)
+str(CO2_CH4_dat_camp1) #57676 obs., therefore 258 obs removed for CH4 for Camp 1   
+#warning that this method deletes the entire row for each outlying CO2 or CH4 value
+
+#For Campaign 2:
+#CO2
+
+outliers_CO2_2<- Boxplot(CO2_CH4_dat_camp2$CO2_dry ~ ID , data=CO2_CH4_dat_camp2)
+CO2_dat_camp2<- CO2_CH4_dat_camp2 %>%
+  filter(!row_number() %in% outliers_CO2_2)
+str(CO2_dat_camp2) #55342 obs., therefore 202 obs removed for CO2 for Camp 2
+
+#CH4
+outliers_CH4_2<- Boxplot(CO2_CH4_dat_camp2$CH4_dry ~ ID , data=CO2_CH4_dat_camp2)
+CO2_CH4_dat_camp2<- CO2_dat_camp2 %>%
+  filter(!row_number() %in% outliers_CH4_2)
+str(CO2_CH4_dat_camp2) # 55169 obs., therefore 375 obs removed for CH4 for Camp 2   
+
+########################################################################
+#### Selecting the linear portion of the flux using DPSEG #############
+#######################################################################
+
+#nest the data by ID
+CO2_CH4_dat_camp1_nested <- CO2_dat_camp1 %>% 
+  group_by(ID) %>% 
+  nest()
+
+CO2_CH4_dat_camp2_nested <- CO2_dat_camp2 %>% 
+  group_by(ID) %>% 
+  nest()
+
+
+# EXPLANATION OF DPSEG FUNCTION PARAMETERS
+
+# I have specified a minimum segment length because if I do it, the weird seconds (<1min) at the end or start will remain
+# jumps = FALSE --> continuous measure, no jumps between segments
+# P = indicator of goodness of the fit; higher P allows longer segments
+# function to estimate p based on the data (some plots are more disperse than others)
+# I am using EPOCH_TIME to have unique numerical values for each time
+
+# functions to obtain the segments the CO2 and CH4 fits
+
+CO2_seg <- function(x) { (dpseg(x=x$EPOCH_TIME,
+                                y=x$CO2_dry,
+                                jumps = FALSE, 
+                                P = estimateP(x=x$EPOCH_TIME, y=x$CO2_dry),
+))$segments }
+
+CH4_seg <- function(x) { (dpseg(x=x$EPOCH_TIME,
+                                y=x$CH4_dry,
+                                jumps = FALSE, 
+                                P = estimateP(x=x$EPOCH_TIME, y=x$CH4_dry),
+))$segments }
+
+# apply functions to nested data
+# store the results in new vectors called CO2 and CH4_segments 
+
+#For campaign 1
+
+dataFlux_nested_segs_camp1<- CO2_CH4_dat_camp1_nested %>%  
+  mutate(CO2_segments  = map(data, CO2_seg)) %>% 
+  mutate(CH4_segments = map(data, CH4_seg))
+
+#For campaign 2
+
+dataFlux_nested_segs_camp2<- CO2_CH4_dat_camp2_nested %>%  
+  mutate(CO2_segments  = map(data, CO2_seg)) %>% 
+  mutate(CH4_segments = map(data, CH4_seg))
+
+####################################
+# Now we want to plot those segments
+
+#function to select values for plotting CO2 segments (X and Y)
+
+CO2_predX <- function(x) { predict(dpseg(x=x$EPOCH_TIME,
+                                         y=x$CO2_dry,
+                                         jumps = FALSE, 
+                                         P = estimateP(x=x$EPOCH_TIME, y=x$CO2_dry),
+))$x }
+
+CO2_predY <- function(x) { predict(dpseg(x=x$EPOCH_TIME,
+                                         y=x$CO2_dry,
+                                         jumps = FALSE, 
+                                         P = estimateP(x=x$EPOCH_TIME, y=x$CO2_dry),
+))$y }
+
+CH4_predX <- function(x) { predict(dpseg(x=x$EPOCH_TIME,
+                                         y=x$CH4_dry,
+                                         jumps = FALSE, 
+                                         P = estimateP(x=x$EPOCH_TIME, y=x$CH4_dry),
+))$x }
+
+CH4_predY <- function(x) { predict(dpseg(x=x$EPOCH_TIME,
+                                         y=x$CH4_dry,
+                                         jumps = FALSE, 
+                                         P = estimateP(x=x$EPOCH_TIME, y=x$CH4_dry),
+))$y }
+
+
+# apply functions to nested data
+
+#For campaign 1
+
+dataFlux_nested_plots_camp1 <- CO2_CH4_dat_camp1_nested %>%  
+  mutate(CO2_PredX  = map(data, CO2_predX)) %>% 
+  mutate(CO2_PredY = map(data, CO2_predY))%>%
+  mutate(CH4_PredX  = map(data, CH4_predX)) %>% 
+  mutate(CH4_PredY = map(data, CH4_predY))
+
+dataFlux_nested_plots_camp1
+
+#for campaign 2 
+
+dataFlux_nested_plots_camp2 <- CO2_CH4_dat_camp2_nested %>%  
+  mutate(CO2_PredX  = map(data, CO2_predX)) %>% 
+  mutate(CO2_PredY = map(data, CO2_predY))%>%
+  mutate(CH4_PredX  = map(data, CH4_predX)) %>% 
+  mutate(CH4_PredY = map(data, CH4_predY))
+
+dataFlux_nested_plots_camp2
+
+
+# join the different data vectors in the same tibble
+# there is a WARNING MESSAGE but doesn?t matter
+
+dataFlux_nested_plots_camp1 <- dataFlux_nested_plots_camp1 %>% unnest() %>% group_by(ID) %>% nest()
+dataFlux_nested_plots_camp1
+
+dataFlux_nested_plots_camp2 <- dataFlux_nested_plots_camp2 %>% unnest() %>% group_by(ID) %>% nest()
+dataFlux_nested_plots_camp2
+
+# create CO2 and CH4 concentration~time plot 
+# adding the predicted segments (geom_line) 
+
+# EXPLANATION
+#when using map2() instead of map(), you specify two elements, and then the function.
+# here: data and ID
+# inside the function, you refer to the first element (data) with .x
+# and to the second (ID) with .y
+#######
+
+#For campaign 1
+dataFlux_plots_camp1 <- 
+  dataFlux_nested_plots_camp1 %>% 
+  mutate(CO2_plot = map2(data, ID, ~ ggplot(data = .x, aes(x =EPOCH_TIME, y = CO2_dry)) +
+                           geom_point (size=1.5) + ggtitle(paste0(unique(.y),"_CO2")) +
+                           geom_line(aes(x= CO2_PredX , y= CO2_PredY), size=1.5, linetype=1, col="red"))) %>%
+  mutate(CH4_plot = map2(data, ID, ~ ggplot(data = .x, aes(x = EPOCH_TIME, y = CH4_dry)) +
+                           geom_point (size=1.5) + ggtitle(paste0(unique(.y),"_CH4")) +
+                           geom_line(aes(x= CH4_PredX , y= CH4_PredY), size=1.5, linetype=1, col="red")))
+
+#For campaign 2
+dataFlux_plots_camp2 <- 
+  dataFlux_nested_plots_camp2 %>% 
+  mutate(CO2_plot = map2(data, ID, ~ ggplot(data = .x, aes(x =EPOCH_TIME, y = CO2_dry)) +
+                           geom_point (size=1.5) + ggtitle(paste0(unique(.y),"_CO2")) +
+                           geom_line(aes(x= CO2_PredX , y= CO2_PredY), size=1.5, linetype=1, col="red"))) %>%
+  mutate(CH4_plot = map2(data, ID, ~ ggplot(data = .x, aes(x = EPOCH_TIME, y = CH4_dry)) +
+                           geom_point (size=1.5) + ggtitle(paste0(unique(.y),"_CH4")) +
+                           geom_line(aes(x= CH4_PredX , y= CH4_PredY), size=1.5, linetype=1, col="red")))
+
+#########################
+#export CO2 plots in .png
+
+file_names_CO2_camp1 <- paste0(dataFlux_plots_camp1$ID,"_CO2", ".png")
+setwd("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Flux_figures/Linear_segments/Camp1/CO2")
+walk2(file_names_CO2_camp1, dataFlux_plots_camp1$CO2_plot, ggsave)
+
+file_names_CH4 <- paste0(dataFlux_plots$ID,"_CH4", ".png")
+setwd("C:/Users/naina/OneDrive/Escritorio/data analysis DRYvER/FRA_March/3_LINEAR SEGMENTS/CH4")
+walk2(file_names_CH4, dataFlux_plots$CH4_plot, ggsave)
+
+
+
+
+
+
+
 
 ########################################################
 ################## Make flux figures ###################
