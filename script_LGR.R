@@ -33,7 +33,7 @@ library(dpseg)
 #Campaign 1 (March 16 - 25, 2021) 
 
 LGR_MAR2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data_MAR2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
-str(LGR_MAR2021) #131258 obs. or 36 vars
+str(LGR_MAR2021) #131258 obs. of 36 vars
 
 
 #Campaign 3 (June 21, 2021 - July 1, 2021) 
@@ -42,26 +42,30 @@ str(LGR_JUN2021) #130263 obs. of  36 vars
 
 
 #Campaign 5 (September 13 - 21, 2021) 
-
 LGR_SEP2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign5_raw_data_SEP2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
 str(LGR_SEP2021) #57406 obs. of  36 vars 
-#A bit suspicious that there are hald as many observations, but I guess I made fewer measurements over time. 
+#A bit suspicious that there are half as many observations, but I guess I made fewer measurements over time. 
 
 
-#Campaign 7 (November 2021 22 - December 1, 2021) 
-# Yet to come 
+#Campaign 7 (November 2021 22 - December 3, 2021) 
+LGR_NOV2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign7_raw_data_NOV2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
+str(LGR_NOV2021)
+#95818 obs of 36 vars
+
 
 #############################################################################
 
 ##### Combine (vertically) all of the data from each of the campaigns #######
 
+#Maybe you need to correct the times before you combine?
+
 #Combine the campaigns together vertically
-LGR_2021 <- rbind(LGR_MAR2021,LGR_JUN2021, LGR_SEP2021)
-str(LGR_2021) #318927 obs. of  36 variables
+LGR_2021 <- rbind(LGR_MAR2021,LGR_JUN2021, LGR_SEP2021, LGR_NOV2021)
+str(LGR_2021) #414745 obs. of  36 variables
 
 #Subset just the useful columns (Time, [N2O]d_ppm, AmbT_C)
 LGR_2021<- subset(LGR_2021, select = c( "Time", "[N2O]d_ppm", "AmbT_C"))
-str(LGR_2021) #318927 obs. of  3 variables
+str(LGR_2021) #414745 obs. of  3 variables
 
 #Rename the N2O column to get rid of the square brackets because they can cause some issues later
 names(LGR_2021)[names(LGR_2021) == "[N2O]d_ppm"] <- "N2O_ppm"
@@ -80,17 +84,27 @@ write.csv(LGR_2021, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documen
 
 #import the ancillary data files for the aquatic and riparian measurements
 
-ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_aquatic_2021-11-18.csv", header=T)
-str(ancil_dat_aquatic) #997 obs. of  43 variables
+ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021-Aquatic_2022-01-14.csv", header=T)
+str(ancil_dat_aquatic) #1069 obs. of  31 variables
 
-ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_aquatic_2021-11-18.csv", header=T)
-str(ancil_dat_riparian) #225 obs. of  25 variables
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021-Riparian_2022-01-14.csv", header=T)
+str(ancil_dat_riparian) #1010 obs. of  25 variables
 
-#the 2021-04-19 data was updated to correct the errors in inputting the times as per the checks below
 
-#add an ID column 
-ancil_dat_aquatic$ID <- paste(ancil_dat_aquatic$siteID_new,ancil_dat_aquatic$point,sep="_")
-ancil_dat_riparian$ID <- paste(ancil_dat_riparian$siteID_new,ancil_dat_riparian$point,sep="_")
+#add an ID column which combines site, point, and campaign
+
+#Could consider adding date or campaign to the ID column, but instead maybe subset by campaign, and run the loop separately for each campaign
+
+ancil_dat_aquatic$ID <- paste(ancil_dat_aquatic$siteID_new,ancil_dat_aquatic$point, ancil_dat_aquatic$campaign, sep="_")
+
+ancil_dat_riparian$ID <- paste(ancil_dat_riparian$siteID_new,ancil_dat_riparian$point, ancil_dat_riparian$campaign, sep="_" )
+
+#In order to merge the riparian and aquatic ancillary data, need to differentiate between awuatic and riparian collar heights, so rename aquatic collar heights to "sed_collarheight1" etc. 
+
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height1"] <- "sed_collar_height1"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height2"] <- "sed_collar_height2"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height3"] <- "sed_collar_height3"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_volume_L"] <- "sed_collar_volume_L"
 
 #combine the riparian and aquatic ancillary data
 ancil_dat <- bind_rows(ancil_dat_aquatic, ancil_dat_riparian)
@@ -103,37 +117,58 @@ ancil_dat$time_end<- as.POSIXct(paste(ancil_dat$date, ancil_dat$time_end), forma
 ancil_dat$soil_temp <- rowMeans(ancil_dat[,c('soil_temp1', 'soil_temp2', 'soil_temp3')], na.rm=TRUE)
 ancil_dat$VWC <- rowMeans(ancil_dat[,c('VWC_1', 'VWC_2', 'VWC_3')], na.rm=TRUE)
 
+#Take the average also of sediment temperature and moisture, as well as collar height for dry fluxes
+ancil_dat$sed_temp <- rowMeans(ancil_dat[,c('sed_temp1', 'sed_temp2', 'sed_temp3')], na.rm=TRUE)
+ancil_dat$sed_VWC <- rowMeans(ancil_dat[,c('sed_VWC1', 'sed_VWC2', 'sed_VWC3')], na.rm=TRUE)
+ancil_dat$sed_collar_height <- rowMeans(ancil_dat[,c('sed_collar_height1', 'sed_collar_height2', 'sed_collar_height3')], na.rm=TRUE)
+
+
+#replace the resulting NaN's with NA's
+ancil_dat$soil_temp[is.nan(ancil_dat$soil_temp)]<-NA
+ancil_dat$VWC[is.nan(ancil_dat$VWC)]<-NA
+ancil_dat$sed_temp[is.nan(ancil_dat$sed_temp)]<-NA
+ancil_dat$sed_VWC[is.nan(ancil_dat$sed_VWC)]<-NA
+ancil_dat$collar_height[is.nan(ancil_dat$collar_height)]<-NA
+
+#Take the pool_width1 column (width2 is the length I think, so discard), divide by 100 to get metres and add them to the stream width column
+ancil_dat$stream_width_m_2 <- ancil_dat$pool_riffle_width1  /100
+ancil_dat <- ancil_dat %>% mutate(stream_width = coalesce(stream_width_m, stream_width_m_2)) 
+
+#Now rename the old stream width column and update the new one to stream_width_m
+names(ancil_dat)[names(ancil_dat) == "stream_width_m"] <- "stream_width_m_old"
+names(ancil_dat)[names(ancil_dat) == "stream_width"] <- "stream_width_m"
+
+
 #Subset the ancillary data for only LGR data
 ancil_dat<-ancil_dat[ancil_dat$Picarro_LGR=="LGR",]
 
 #Subset just the useful columns: Date, ID, drying_regime, soil_temp, VWC, Picarro_LGR, total_volume_L, chamber_area_m2, flowing_state, habitat_type, pool_riffle_depth_cm, time_start, time_end 
 
-ancil_dat <- ancil_dat %>% select("date", "siteID_new", "ID", "time_start", "time_end", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "pool_riffle_depth_cm")
+ancil_dat <- ancil_dat %>% select( "ID_unique", "campaign", "date", "siteID_new", "ID", "time_start", "time_end", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "stream_width_m", "pool_riffle_depth_cm", "sed_temp", "sed_VWC")
 
 #rename Site column
-
 names(ancil_dat)[names(ancil_dat) == "siteID_new"] <- "Site"
 
-str(ancil_dat) #223 obs
+str(ancil_dat) #707 obs of 19 vars
 
-#write.csv(ancil_dat, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/LGR_ancil_dat.csv")
+write.csv(ancil_dat, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/LGR_ancil_dat.csv")
 
 
 ###################################################
 #### Ancillary Data Cleaning: Long intervals #####
 ##################################################
 
-#data cleaning : check if there are any super long or super short intervals (potentially typos) 
+#data cleaning : check if there are any super long or super short intervals (negative) (potentially typos) 
 
 ancil_dat$int <- difftime(ancil_dat$time_end, ancil_dat$time_start, unit = "mins")
-ancil_dat <- ancil_dat %>% mutate(long_int=ifelse(int>=6,T,F))
+#ancil_dat <- ancil_dat %>% mutate(long_int=ifelse(int>=6,T,F))
+
+#manual edit in the google doc file, and re download
 
 # Make an if else statement modifying the end time to 5 minutes after the start time if the interval is greater than 5 minutes
-
-ancil_dat$time_end <-data.table::fifelse(ancil_dat$long_int=="TRUE", ancil_dat$time_start+300, ancil_dat$time_end)
+#ancil_dat$time_end <-data.table::fifelse(ancil_dat$long_int=="TRUE", ancil_dat$time_start+300, ancil_dat$time_end)
 
 #The first few, and last few seconds are often wonky (remove)
-head(ancil_dat)
 
 ancil_dat$time_start <- ancil_dat$time_start +30
 ancil_dat$time_end <- ancil_dat$time_end -30
