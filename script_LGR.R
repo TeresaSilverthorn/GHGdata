@@ -19,6 +19,7 @@ library(data.table)
 library(stringr)
 library(car)
 library(dpseg)
+library(scales)
 
 #################################
 ######## Import data  ##########
@@ -34,7 +35,6 @@ library(dpseg)
 
 LGR_MAR2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data_MAR2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
 str(LGR_MAR2021) #131258 obs. of 36 vars
-
 
 #Campaign 3 (June 21, 2021 - July 1, 2021) 
 LGR_JUN2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign3_raw_data_JUN2021/LGR_raw_data", pattern='txt', full.names=T, recursive=TRUE), fread ,header=T))
@@ -83,6 +83,9 @@ write.csv(LGR_2021, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documen
 ################################################################
 
 #import the ancillary data files for the aquatic and riparian measurements
+
+
+## NEED TO RE DOWNLOAD BC I MADE SOME CHANGES
 
 ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021-Aquatic_2022-01-14.csv", header=T)
 str(ancil_dat_aquatic) #1069 obs. of  31 variables
@@ -175,360 +178,49 @@ ancil_dat$time_end <- ancil_dat$time_end -30
 
 head(ancil_dat)
 
+################################### Timing cleaning ########################
+## For each campaign take an example site and make sure the start and end times match the peak
 
-########### DO NOT RUN THIS CODE IF YOU WANT "UNTIDY" DATA EG. FOR THE BREAKPOINT ANALYSIS ##################################################################################
+all <- ggplot(data=LGR_2021,aes(Time, N2O_ppm))+ geom_point() #+ scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
+all #try BR02 here
 
-# In certain cases, visual inspection shows you need to cut even more
+#Campaign 1: 
 
-#Modifying the start time:
+MAR2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-18 12:30" & LGR_2021$Time>"2021-03-18 11:00"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
+MAR2021 #using BR02 data (high peaks normally) #more or less on time
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL01_R1"), ancil_dat$time_start +100 , ancil_dat$time_start)
+MAR2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-17 12:40" & LGR_2021$Time>"2021-03-17 9:00"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("5 min"), date_labels = "%I:%M") + ylim(0.334, 0.355)
+MAR2021 #Also high peaks at GR01 #difficult to determine a pattern, but seems s/e time is ahead
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL02_A1"), ancil_dat$time_start +30, ancil_dat$time_start)
 
-#AL02_A1 <- N2O_dat[ which(N2O_dat$ID=='AL02_A1'), ]
-#plot(AL02_A1$Time, AL02_A1$N2O_ppm)
+#Campaign 3: 
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL02_C1"), ancil_dat$time_start +45 , ancil_dat$time_start)
+JUN2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-06-25 15:00" & LGR_2021$Time>"2021-06-25 14:10"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") + ylim(0.335, 0.42)
+JUN2021 #BR01 # On average the times are 9.16666 minutes ahead
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL02_R5"), ancil_dat$time_start +50 , ancil_dat$time_start)
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL03_B1"), ancil_dat$time_start +60 , ancil_dat$time_start)
+JUN2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-06-25 11:45" & LGR_2021$Time>"2021-06-25 10:30"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") + ylim(0.345, 0.43)
+JUN2021 #BR02 #On average the actual times are 8.8 minutes ahead
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL04_A1"), ancil_dat$time_start +110 , ancil_dat$time_start)
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL04_D1"), ancil_dat$time_start +70 , ancil_dat$time_start)
+#Campaign 5 :
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL05_A1"), ancil_dat$time_start +110 , ancil_dat$time_start)
+SEP2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-09-15 13:30" & LGR_2021$Time>"2021-09-25 12:30"),],aes(Time, N2O_ppm))+ geom_point() #+ scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
+SEP2021 #try BR02 here
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL05_A2"), ancil_dat$time_start +92 , ancil_dat$time_start)
+#Campaign 7: is on average 13.4 minutes ahead of the recorded times
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL06_A1"), ancil_dat$time_start +70 , ancil_dat$time_start)
+NOV232021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-11-23 11:30" & LGR_2021$Time>"2021-11-23 9:00"),],aes(Time, N2O_ppm)) + geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")  
+#+ theme(axis.text.x = element_text(angle = 30))
+NOV232021 #CA02 # On average the actual times are 13.333 minutes ahead
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL06_F1"), ancil_dat$time_start +125 , ancil_dat$time_start)
+NOV252021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-11-25 14:00" & LGR_2021$Time>"2021-11-25 12:30"),],aes(Time, N2O_ppm)) + geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")  + ylim(0.339, 0.365)
+NOV252021  #AL02 #on average 13.5 minutes ahead
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "AL07_R1"), ancil_dat$time_start +10 , ancil_dat$time_start)
+DEC32021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-12-03 15:50" & LGR_2021$Time>"2021-12-03 13:00"),],aes(Time, N2O_ppm)) + geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")  + ylim(0.325, 0.390)
+DEC22021  #BU02 # on average 13.5 minutes ahead
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BR01_A1"), ancil_dat$time_start +30 , ancil_dat$time_start)
 
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BR01_R3"), ancil_dat$time_start +30 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BR01_R4"), ancil_dat$time_start +50 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BR02_A1"), ancil_dat$time_start + 20 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BR02_R4"), ancil_dat$time_start +40 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BR02_R5"), ancil_dat$time_start +10 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BU01_B1"), ancil_dat$time_start +9 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BU01_D1"), ancil_dat$time_start +35 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BU01_R1"), ancil_dat$time_start +5 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "BU02_A1"), ancil_dat$time_start +90 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "CA01_A1"), ancil_dat$time_start +15 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "CO01_A1"), ancil_dat$time_start +90 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "CO01_C1"), ancil_dat$time_start +90 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "ME01_A1"), ancil_dat$time_start +50 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "ME01_C1"), ancil_dat$time_start +30 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "ME01_E1"), ancil_dat$time_start +30 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "RA01_R1"), ancil_dat$time_start +20 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "RA01_R5"), ancil_dat$time_start +80 , ancil_dat$time_start)
-
-ancil_dat$time_start <- data.table::fifelse((ancil_dat$ID == "VI01_R3"), ancil_dat$time_start +20 , ancil_dat$time_start)
-
-#############################################
-#Modifying the end time:
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL01_D1"), ancil_dat$time_end - 6 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL01_E1"), ancil_dat$time_end - 50 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL01_R2"), ancil_dat$time_end - 115 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL01_R5"), ancil_dat$time_end - 20 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL01_R6"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_B1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_E1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_E1"), ancil_dat$time_end - 58 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_R1"), ancil_dat$time_end - 25 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_R2"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL02_R6"), ancil_dat$time_end - 55 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_C1"), ancil_dat$time_end - 20 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_E1"), ancil_dat$time_end - 95 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_E2"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_R3"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_R2"), ancil_dat$time_end - 52 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_R4"), ancil_dat$time_end - 90 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL03_R5"), ancil_dat$time_end - 36 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL04_B1"), ancil_dat$time_end - 46 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL04_C1"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL04_R2"), ancil_dat$time_end - 145 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_A1"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_A2"), ancil_dat$time_end - 45 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_B1"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_C1"), ancil_dat$time_end - 15 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_D1"), ancil_dat$time_end - 50 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_R1"), ancil_dat$time_end - 46 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_R2"), ancil_dat$time_end - 33 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL05_R3"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_A1"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_C1"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_E1"), ancil_dat$time_end - 34 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_R2"), ancil_dat$time_end - 42 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_R4"), ancil_dat$time_end - 160 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL06_R5"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_A1"), ancil_dat$time_end - 122 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_C1"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_E1"), ancil_dat$time_end - 42 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_R2"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_R4"), ancil_dat$time_end - 41 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "AL07_R6"), ancil_dat$time_end - 15 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR01_R3"), ancil_dat$time_end - 5 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_A1"), ancil_dat$time_end - 10 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_E1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_R1"), ancil_dat$time_end - 170 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_R2"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_R3"), ancil_dat$time_end - 105 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BR02_R4"), ancil_dat$time_end - 15 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU01_A1"), ancil_dat$time_end - 52 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU01_B1"), ancil_dat$time_end - 20 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU01_D1"), ancil_dat$time_end - 50 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU01_R2"), ancil_dat$time_end - 22 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU01_R4"), ancil_dat$time_end - 100 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU02_C1"), ancil_dat$time_end - 110 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU02_D1"), ancil_dat$time_end - 56 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU02_R1"), ancil_dat$time_end - 70 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "BU02_R6"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_B1"), ancil_dat$time_end - 47 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_C1"), ancil_dat$time_end - 135 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_E1"), ancil_dat$time_end +90 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_R1"), ancil_dat$time_end - 32 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_R2"), ancil_dat$time_end - 15 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_R3"), ancil_dat$time_end - 102 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_R4"), ancil_dat$time_end - 80 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA01_R5"), ancil_dat$time_end - 92 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA02_A1"), ancil_dat$time_end - 85 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA02_B1"), ancil_dat$time_end - 102 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA02_C1"), ancil_dat$time_end - 160 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA02_E1"), ancil_dat$time_end - 100 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA02_F1"), ancil_dat$time_end - 40 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CA02_R2"), ancil_dat$time_end - 15 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CO01_E1"), ancil_dat$time_end - 38 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CO01_R3"), ancil_dat$time_end - 125 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "CO01_R5"), ancil_dat$time_end - 10 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "GR01_B1"), ancil_dat$time_end - 10 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "GR01_R1"), ancil_dat$time_end - 65 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "GR01_R2"), ancil_dat$time_end - 57 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "GR01_R3"), ancil_dat$time_end - 63 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "GR01_R4"), ancil_dat$time_end - 50 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "GR01_R6"), ancil_dat$time_end - 15 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_A1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_C1"), ancil_dat$time_end - 50 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_D1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_E1"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_R1"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_R3"), ancil_dat$time_end - 15 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "ME01_R5"), ancil_dat$time_end - 30 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RA01_A1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_A1"), ancil_dat$time_end - 35 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RA01_D1"), ancil_dat$time_end - 100 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_A1"), ancil_dat$time_end - 60 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "RO01_D1"), ancil_dat$time_end - 55 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "VI01_C1"), ancil_dat$time_end - 75 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "VI01_D1"), ancil_dat$time_end - 120 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "VI01_R3"), ancil_dat$time_end - 100 , ancil_dat$time_end)
-
-ancil_dat$time_end <- data.table::fifelse((ancil_dat$ID == "VI01_R4"), ancil_dat$time_end - 100 , ancil_dat$time_end)
-
-
-str(ancil_dat) #223 obs. 
-
-########### More data cleaning - removing points ############
-# Some data points are such crap that we need to completely exclude the entire point
-#Or in some cases the data set is too short (perhaps because the N2O wasn't warmed up yet and we started mesuring)
-
-ancil_dat <- ancil_dat %>%
-  filter(!ID == "AL01_B1")%>%
-  filter(!ID == "AL02_B1")%>%
-  filter(!ID == "AL02_R3")%>%
-  filter(!ID == "AL02_R4")%>%
-  filter(!ID == "AL04_E1")%>%
-  filter(!ID == "AL05_R2")%>%
-  filter(!ID == "AL05_R3")%>%
-  filter(!ID == "AL06_A1")%>%
-  filter(!ID == "AL06_R4")%>%
-  filter(!ID == "BR01_B1")%>%
-  filter(!ID == "BR01_C1")%>%
-  filter(!ID == "BR01_R2")%>%
-  filter(!ID == "BR02_A1")%>%
-  filter(!ID == "BU01_R6")%>%
-  filter(!ID == "BU02_E1")%>%
-  filter(!ID == "CA01_E1")%>%
-  filter(!ID == "CA02_A1")%>%
-  filter(!ID == "CA02_C1")%>%
-  filter(!ID == "CA02_E1")%>%
-  filter(!ID == "CA02_R1")%>%
-  filter(!ID == "CA02_R5")%>% #too short
-  filter(!ID == "CA02_R6")%>%
-  filter(!ID == "CO01_C1")%>%
-  filter(!ID == "CO01_F1")%>%
-  filter(!ID == "GR01_A1")%>%
-  filter(!ID == "GR01_C1")%>%
-  filter(!ID == "GR01_D1")%>%
-  filter(!ID == "GR01_E1")%>%
-  filter(!ID == "GR01_R4")%>%
-  filter(!ID == "JO01_R6")%>%
-  filter(!ID == "JO01_R7")%>%
-  filter(!ID == "RO01_R1")%>%
-  filter(!ID == "RO01_R4")%>%
-  filter(!ID == "RO01_R6")%>%
-  filter(!ID == "VI01_B1")%>%
-  filter(!ID == "VI01_C1")%>%
-  filter(!ID == "VI01_R1")%>% #too short
-  filter(!ID == "VI01_R2")%>%
-  filter(!ID == "VI01_R3")%>%
-  filter(!ID == "VI01_R4")%>%
-  filter(!ID == "VI01_R5")
-
-
-str(ancil_dat) #195
-
-#Excluded for:
-# "V" or other weird distribution, unclear which if there is influx or efflux, and can't determine based on the other points at the site:
-#AL01_B1
-#AL02_R3
-#AL02_R4
-#AL04_E1
-#AL05_R3
-#AL06_A1
-#BR01_B1
-#BR01_C1
-#BR01_R2
-#BR02_A1
-#BU01_D1
-#BU01_R6
-#BU02_A1
-#BU02_E1
-#CA01_E1
-#CA02_E1
-#CA02_R1
-#CA02_R6
-#CO01_F1
-#GR01_A1
-#GR01_C1
-#GR01_D1
-#GR01_E1
-#GR01_R4
-#JO01_R6
-#RO01_R1
-#RO01_R4
-#VI01_B1
-#VI01_R2
-#VI01_R3
-#VI01_R4
-#VI01_R5
 
 
 
@@ -539,63 +231,7 @@ str(ancil_dat) #195
 
 #Now, cut the concentration based on the Start and End times from the ancillary data sheet
 
-####### OPTION 1 #########################################
-### You can do this manually following Naiara's script ###
-
-
-
-
-#Using AL01 2020.03.25 as an example
-
-#RIPARIAN
-AL04_R1<-LGR_March2021[Time >= "2021-03-25 14:47:00" & Time <= "2021-03-25 14:52:00"]
-AL04_R2<-LGR_March2021[Time >= "2021-03-25 14:56:00" & Time <= "2021-03-25 15:01:00"]
-AL04_R3<-LGR_March2021[Time >= "2021-03-25 15:27:00" & Time <= "2021-03-25 15:32:00"]
-AL04_R5<-LGR_March2021[Time >= "2021-03-25 15:56:00" & Time <= "2021-03-25 16:01:00"]
-AL04_R6<-LGR_March2021[Time >= "2021-03-25 16:18:00" & Time <= "2021-03-25 16:23:00"]
-
-#AQUATIC
-AL04_A1<-LGR_March2021[Time >= "2021-03-25 14:40:00" & Time <= "2021-03-25 14:45:00"]
-AL04_B1<-LGR_March2021[Time >= "2021-03-25 15:03:00" & Time <= "2021-03-25 15:08:00"]
-AL04_C1<-LGR_March2021[Time >= "2021-03-25 15:21:00" & Time <= "2021-03-25 15:26:00"]
-AL04_D1<-LGR_March2021[Time >= "2021-03-25 15:50:00" & Time <= "2021-03-25 15:55:00"]
-AL04_E1<-LGR_March2021[Time >= "2021-03-25 16:12:00" & Time <= "2021-03-25 16:17:00"]
-
-
-#create an ID column for each measure
-AL04_R1$ID <- rep("AL04_R1",nrow(AL04_R1)) 
-AL04_R2$ID <- rep("AL04_R2",nrow(AL04_R2))
-AL04_R3$ID <- rep("AL04_R3",nrow(AL04_R3))
-AL04_R5$ID <- rep("AL04_R5",nrow(AL04_R5))
-AL04_R6$ID <- rep("AL04_R6",nrow(AL04_R6))
-
-AL04_A1$ID <- rep("AL04_A1",nrow(AL04_A1)) 
-AL04_B1$ID <- rep("AL04_B1",nrow(AL04_B1)) 
-AL04_C1$ID <- rep("AL04_C1",nrow(AL04_C1)) 
-AL04_D1$ID <- rep("AL04_D1",nrow(AL04_D1)) 
-AL04_E1$ID <- rep("AL04_E1",nrow(AL04_E1)) 
-
-#plot
-par(mfrow=c(2,5), mai = c(.1, .3, .5, .1))
-plot(N2O_ppm~ Time, data=AL04_R1)
-plot(N2O_ppm~ Time, data=AL04_R2)
-plot(N2O_ppm~ Time, data=AL04_R3)
-plot(N2O_ppm~ Time, data=AL04_R5)
-plot(N2O_ppm~ Time, data=AL04_R6)
-plot(N2O_ppm~ Time, data=AL04_A1)
-plot(N2O_ppm~ Time, data=AL04_B1)
-plot(N2O_ppm~ Time, data=AL04_C1)
-plot(N2O_ppm~ Time, data=AL04_D1)
-plot(N2O_ppm~ Time, data=AL04_E1)
-
- #don't run this if running OPTION 2 below ##
-####### OPTION 2 #############
-### You can automate this process using a loop
-##############################
-
-# It would be faster to automate these steps 
-# Write a loop to clip the [N2O] by start time and end time
-
+## You can automate this process using a loop
 
 ID <- ancil_dat$ID
 startT<-ancil_dat$time_start #start times
