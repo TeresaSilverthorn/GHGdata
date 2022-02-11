@@ -90,7 +90,7 @@ write.csv(LGR_2021, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documen
 ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021-Aquatic_2022-01-14.csv", header=T)
 str(ancil_dat_aquatic) #1069 obs. of  31 variables
 
-ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021-Riparian_2022-01-14.csv", header=T)
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Riparian_2022-01-27.csv", header=T)
 str(ancil_dat_riparian) #1010 obs. of  25 variables
 
 
@@ -186,14 +186,24 @@ all #try BR02 here
 
 #Campaign 1: 
 
-MAR2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-18 12:30" & LGR_2021$Time>"2021-03-18 11:00"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
-MAR2021 #using BR02 data (high peaks normally) #more or less on time
+MAR252021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-25 11:00" & LGR_2021$Time>"2021-03-25 9:00"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
+MAR252021 #AL07 #On average, the LGR time is 6 minutes ahead of the recorded start/end time. 
 
-MAR2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-17 12:40" & LGR_2021$Time>"2021-03-17 9:00"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("5 min"), date_labels = "%I:%M") + ylim(0.334, 0.355)
-MAR2021 #Also high peaks at GR01 #difficult to determine a pattern, but seems s/e time is ahead
+
+MAR2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-23 14:30" & LGR_2021$Time>"2021-03-23 13:55"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") + ylim(0.334, 0.37)
+MAR2021 #CO01 #AL07 #On average, the LGR time is 6 minutes ahead of the recorded start/end time. 
+
+
+MAR2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-18 12:30" & LGR_2021$Time>"2021-03-18 11:14"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
+MAR2021 #BR02 # On average, the LGR time is 6.35 minutes ahead of the recorded start/end time. 
 
 
 #Campaign 3: 
+
+#Campaign 3 (June 21, 2021 - July 1, 2021) 
+
+JUN2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-06-28 15:50" & LGR_2021$Time>"2021-06-28 14:40"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")  + ylim(0.335, 0.42)
+JUN2021 #BU02  # On average the LGR time is 8.85 minutes ahead of the recorded start and end times
 
 JUN2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-06-25 15:00" & LGR_2021$Time>"2021-06-25 14:10"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") + ylim(0.335, 0.42)
 JUN2021 #BR01 # On average the times are 9.16666 minutes ahead
@@ -204,9 +214,18 @@ JUN2021 #BR02 #On average the actual times are 8.8 minutes ahead
 
 
 #Campaign 5 :
+SEP152021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-09-15 11:30" & LGR_2021$Time>"2021-09-15 10:30"),],aes(Time, N2O_ppm))+ geom_point() + ylim(0.3, 0.45) + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") 
+SEP152021 # AL04 # On average the actual times are 11.333 minutes ahead
 
-SEP2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-09-15 13:30" & LGR_2021$Time>"2021-09-25 12:30"),],aes(Time, N2O_ppm))+ geom_point() #+ scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
-SEP2021 #try BR02 here
+
+SEP152021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-09-15 14:10" & LGR_2021$Time>"2021-09-15 13:30"),],aes(Time, N2O_ppm))+ geom_point() + ylim(0.3, 0.45) + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") 
+SEP152021 #AL05 # On average the actual times are 11.25 minutes ahead
+
+
+SEP162021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-09-16 12:45" & LGR_2021$Time>"2021-09-16 12:00"),],aes(Time, N2O_ppm))+ geom_point() + ylim(0.3, 0.45) + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") 
+SEP162021 #CA01 # On average the actual times are 11 minutes ahead
+
+
 
 #Campaign 7: is on average 13.4 minutes ahead of the recorded times
 
