@@ -1,10 +1,13 @@
 ##########################################################################
 ##### Script for importing and processing N2O data from LGR analyzer #####
 ##########################################################################
+
 #Notes
 
 # You need to calculate the time difference between the start/end times and the LGR time for each campaign-
+# The atmospheric concentration of N2O (2018) was 331.1 parts per billion, which is 0.3311 ppm. Therefore the LGR output files are in ppm. 
 
+# Redownload ancillary dat files because I made some changes
 
 ################################
 # Install packages 
@@ -57,8 +60,6 @@ str(LGR_NOV2021)
 
 ##### Combine (vertically) all of the data from each of the campaigns #######
 
-#Maybe you need to correct the times before you combine?
-
 #Combine the campaigns together vertically
 LGR_2021 <- rbind(LGR_MAR2021,LGR_JUN2021, LGR_SEP2021, LGR_NOV2021)
 str(LGR_2021) #414745 obs. of  36 variables
@@ -67,7 +68,7 @@ str(LGR_2021) #414745 obs. of  36 variables
 LGR_2021<- subset(LGR_2021, select = c( "Time", "[N2O]d_ppm", "AmbT_C"))
 str(LGR_2021) #414745 obs. of  3 variables
 
-#Rename the N2O column to get rid of the square brackets because they can cause some issues later
+#Rename the N2O (dry) column to get rid of the square brackets because they can cause some issues later
 names(LGR_2021)[names(LGR_2021) == "[N2O]d_ppm"] <- "N2O_ppm"
 
 # change the time format to "as.POSIXct" time - R's time format
@@ -85,12 +86,10 @@ write.csv(LGR_2021, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documen
 #import the ancillary data files for the aquatic and riparian measurements
 
 
-## NEED TO RE DOWNLOAD BC I MADE SOME CHANGES
-
-ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021-Aquatic_2022-01-14.csv", header=T)
+ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Aquatic_2022-03-22.csv", header=T)
 str(ancil_dat_aquatic) #1069 obs. of  31 variables
 
-ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Riparian_2022-01-27.csv", header=T)
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Riparian_2022-03-21.csv", header=T)
 str(ancil_dat_riparian) #1010 obs. of  25 variables
 
 
@@ -184,7 +183,7 @@ head(ancil_dat)
 all <- ggplot(data=LGR_2021,aes(Time, N2O_ppm))+ geom_point() #+ scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
 all #try BR02 here
 
-#Campaign 1: 
+#Campaign 1 LGR time is on average 6.1166 minutes ahead of the recorded start end time
 
 MAR252021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-25 11:00" & LGR_2021$Time>"2021-03-25 9:00"),],aes(Time, N2O_ppm))+ geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")
 MAR252021 #AL07 #On average, the LGR time is 6 minutes ahead of the recorded start/end time. 
@@ -198,7 +197,7 @@ MAR2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-03-18 12:30" & LGR_202
 MAR2021 #BR02 # On average, the LGR time is 6.35 minutes ahead of the recorded start/end time. 
 
 
-#Campaign 3: 
+#Campaign 3: On average the LGR time is 8.93888 minutes ahead
 
 #Campaign 3 (June 21, 2021 - July 1, 2021) 
 
@@ -213,7 +212,8 @@ JUN2021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-06-25 11:45" & LGR_202
 JUN2021 #BR02 #On average the actual times are 8.8 minutes ahead
 
 
-#Campaign 5 :
+#Campaign 5 : On average the LGR is 11.1943 minutes ahead. 
+
 SEP152021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-09-15 11:30" & LGR_2021$Time>"2021-09-15 10:30"),],aes(Time, N2O_ppm))+ geom_point() + ylim(0.3, 0.45) + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M") 
 SEP152021 # AL04 # On average the actual times are 11.333 minutes ahead
 
@@ -239,8 +239,30 @@ NOV252021  #AL02 #on average 13.5 minutes ahead
 DEC32021 <- ggplot(data=LGR_2021[which(LGR_2021$Time<"2021-12-03 15:50" & LGR_2021$Time>"2021-12-03 13:00"),],aes(Time, N2O_ppm)) + geom_point() + scale_x_datetime(breaks=date_breaks("2 min"), date_labels = "%I:%M")  + ylim(0.325, 0.390)
 DEC22021  #BU02 # on average 13.5 minutes ahead
 
+########################################################################
+########## Adjust start and end times based on LGR time drift #########
+
+#Now, based on the above information, adjust the start and end times in ancil_dat by campagin
+
+#Campaign 1 : 6.1166 minutes or 366.996 seconds
+#Campaign 3 : 8.93888 minutes or 536.333 s
+#Campaign 5 : 11.1943 minutes or 671.658 s
+#Campaign 7: 13.4 minutes or 804 s
 
 
+
+ancil_dat <- ancil_dat %>%
+mutate(time_start = if_else(campaign == 1, as.POSIXct(time_start) + 366.996, time_start)) %>%
+  mutate(time_end = if_else(campaign == 1, as.POSIXct(time_end) + 366.996, time_end))  %>%
+    mutate(time_start = if_else(campaign == 3, as.POSIXct(time_start) + 536.333, time_start)) %>%
+      mutate(time_end = if_else(campaign == 3, as.POSIXct(time_end) + 536.333, time_end)) %>%
+       mutate(time_start = if_else(campaign == 5, as.POSIXct(time_start) + 671.658, time_start)) %>%
+        mutate(time_end = if_else(campaign == 5, as.POSIXct(time_end) + 671.658, time_end)) %>%
+         mutate(time_start = if_else(campaign == 7, as.POSIXct(time_start) + 804, time_start)) %>%
+          mutate(time_end = if_else(campaign == 7, as.POSIXct(time_end) + 804, time_end))
+
+
+#found a missing time fo RA01 F2 09/15 FIX
 
 
 
@@ -250,9 +272,11 @@ DEC22021  #BU02 # on average 13.5 minutes ahead
 
 #Now, cut the concentration based on the Start and End times from the ancillary data sheet
 
+#Because you have replicate measurements from the same sites over time, you need to use the "ID_unique"
+
 ## You can automate this process using a loop
 
-ID <- ancil_dat$ID
+ID <- ancil_dat$ID_unique
 startT<-ancil_dat$time_start #start times
 endT<-ancil_dat$time_end  # end times 
 
@@ -260,7 +284,7 @@ for(i in 1:length(startT)){
   st<-startT[i]
   se<-endT[i]
   id<-ID[i]
-  data<-LGR_March2021[LGR_March2021$Time >= st & LGR_March2021$Time <= se,]
+  data<-LGR_2021[LGR_2021$Time >= st & LGR_2021$Time <= se,]
   data$ID<-id
   
   if(i==1){
@@ -273,23 +297,23 @@ for(i in 1:length(startT)){
 
 LGR_dat<-get(paste("data",length(startT),sep="_"))
 LGR_dat
-str(LGR_dat) # now 69952 obs. of  4 #51429 obs. #48965 obs
+str(LGR_dat) # 167140 obs
 
 ####### DATA CLEANING ##################### DONE ##############
 
 #it seems that we WERE missing some points at some sites.... e.g. BR01
 #Investigate which ID's are in the ancillary data but not the N2O data and correct
-IDstring <-unique(LGR_dat$ID) 
-IDstring <- as.data.frame(IDstring) #218 unique IDs
-names(IDstring)[names(IDstring) == "IDstring"] <- "ID"
+#IDstring <-unique(LGR_dat$ID) 
+#IDstring <- as.data.frame(IDstring) #218 unique IDs
+#names(IDstring)[names(IDstring) == "IDstring"] <- "ID"
 #now compare this to the ancil data and see what we are missing
-ancildatID <- ancil_dat$ID
-ancildatID <- as.data.frame(ancildatID)
-names(ancildatID)[names(ancildatID) == "ancildatID"] <- "ID"
+#ancildatID <- ancil_dat$ID
+#ancildatID <- as.data.frame(ancildatID)
+#names(ancildatID)[names(ancildatID) == "ancildatID"] <- "ID"
 
-missing <- dplyr::setdiff( ancildatID, IDstring)
+#missing <- dplyr::setdiff( ancildatID, IDstring)
 
-print(missing) #    
+#print(missing) #    
 
 # the time was input incorrectly for 1-4 so I went back into the raw data files to correct them 
 # but JO01_R6 only 2 minutes long, and the first one at the site, so maybe we did not capture the flux... 
@@ -313,18 +337,18 @@ print(missing) #
 #start by adding a column for epoch time (expressed as seconds since Jan 1, 1970)
 LGR_dat$epoch_time <- as.integer(as.POSIXct(LGR_dat$Time), tz="Europe/Paris")
 
-str(LGR_dat) #69952 obs. of  5 vars.
+str(LGR_dat) #167140 obs. of  5 variables
 
 #there are duplicated time rows in the data, delete them
 dups <- LGR_dat[duplicated(epoch_time)]
-str(dups)  # 331 obs. 
+str(dups)  # 1587 obs. of  5 variables 
 
 LGR_dat <- LGR_dat %>% 
    # Base the removal on the "epoch_time" column
   distinct(epoch_time, .keep_all = TRUE)
 
-str(LGR_dat) #69490 obs, therefore 462 obs. were removed
-#48634-48965 therefore 331 removed
+str(LGR_dat) #165553 obs. of  5 variables, therefore 462 obs. were removed
+#167140-165553  therefore 1587 removed (or 0.9%, so should hopefully not pose a problem)
 
 
 #then set  the initial time of each measure to 0h 
@@ -337,6 +361,107 @@ rescale <- function(x) (x-min(x))
 LGR_dat <- setDT(LGR_dat)[,c("flux_time"):=.(rescale(epoch_time/3600)),by=.(ID)]
 
 
+###############################################################################
+##### Use DPSEG to select the linear portion of the flux ######################
+
+#nest the data by ID_unique
+LGR_dat_nested <- LGR_dat %>% 
+  group_by(ID_unique) %>% 
+  nest()
+
+# EXPLANATION OF DPSEG FUNCTION PARAMETERS from Naiara:
+# I have specified a minimum segment length because if I do it, the weird seconds (<1min) at the end or start will remain
+# jumps = FALSE --> continuous measure, no jumps between segments
+# P = indicator of goodness of the fit; higher P allows longer segments
+# function to estimate p based on the data (some plots are more disperse than others)
+# I am using EPOCH_TIME to have unique numerical values for each time
+
+# functions to obtain the segments the N2O flux fits
+
+N2O_seg <- function(x) { (dpseg(x=x$epoch_time,
+                                y=x$N2O_ppm,  #Naiara used the value in ug/L here, not sure what is the advantage?
+                                jumps = FALSE, 
+                                P = estimateP(x=x$epoch_time, y=x$N2O_ppm),
+))$segments }
+
+# apply functions to nested data
+# store the results in new vectors called N2O_segments
+
+LGR_dat_nested_segs <- LGR_dat_nested %>%  
+  mutate(N2O_segments  = map(data, N2O_seg)) 
+
+####################################
+# Now we want to plot those segments
+
+#function to select values for plotting N2O segments (X and Y)
+
+N2O_predX <- function(x) { predict(dpseg(x=x$epoch_time,
+                                         y=x$N2O_ppm,
+                                         jumps = FALSE, 
+                                         P = estimateP(x=x$epoch_time, y=x$N2O_ppm),
+))$x }
+
+N2O_predY <- function(x) { predict(dpseg(x=x$epoch_time,
+                                         y=x$N2O_ppm,
+                                         jumps = FALSE, 
+                                         P = estimateP(x=x$epoch_time, y=x$N2O_ppm),
+))$y }
+
+
+# apply functions to nested data
+
+LGR_dat_nested_plots<- LGR_dat_nested %>%  
+  mutate(N2O_PredX  = map(data, N2O_predX)) %>% 
+  mutate(N2O_PredY = map(data, N2O_predY))
+
+LGR_dat_nested_plots
+
+# join the different data vectors in the same tibble
+# there is a WARNING MESSAGE but doesn�t matter
+
+LGR_dat_nested_plots <- LGR_dat_nested_plots %>% unnest() %>% group_by(ID_unique) %>% nest()
+LGR_dat_nested_plots
+
+
+# create N2O concentration~time plot 
+# adding the predicted segments (geom_line) 
+
+# EXPLANATION
+#when using map2() instead of map(), you specify two elements, and then the function.
+# here: data and ID
+# inside the function, you refer to the first element (data) with .x
+# and to the second (ID) with .y
+
+LGR_dat_plots <- 
+  LGR_dat_nested_plots %>% 
+  mutate(N2O_plot = map2(data, ID_unique, ~ ggplot(data = .x, aes(x =epoch_time, y = N2O_ppm)) +
+                           geom_point (size=1.5) + ggtitle(paste0(unique(.y),"_N2O")) +
+                           geom_line(aes(x= N2O_PredX , y= N2O_PredY), size=1.5, linetype=1, col="red"))) 
+
+#Now export CO2 plots in .png
+
+file_names_N2O <- paste0(LGR_dat_plots$ID_unique,"_N2O", ".png")
+setwd("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Flux_figures")
+walk2(file_names_N2O, LGR_dat_plots$N2O_plot, ggsave)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #Convert LGR_dat concentration from ppm to ug-N/L using the ideal gas law (PV=nRT) for input to gasfluxes package. Note that ppm = uL/L
 
 # ug-N/L = ((LGR_dat concentration in ppm  * molecular mass of nitrogen *1 atm )) / (0.08206	L·atm/K·mol * temperature in K )
@@ -344,47 +469,53 @@ LGR_dat <- setDT(LGR_dat)[,c("flux_time"):=.(rescale(epoch_time/3600)),by=.(ID)]
 LGR_dat$N2O_ug_L <- ((LGR_dat$N2O_ppm  * 28.0134 *1 )) / (0.082*(LGR_dat$AmbT_C + 273.15))
 
 #Use 28 for molar mass bc 2*14.0067
-#Use pressure values from LGR if they exist?
+
+#Use unique pressure and temperature values for each measurement 
 
 #Now turn to the ancillary date to prepare it to merge with the N2O data
 
 #Subset just the useful columns: Date, ID, drying_regime, soil_temp, VWC, Picarro_LGR, total_volume_L, chamber_area_m2, flowing_state, habitat_type, pool_riffle_depth_cm,  
 str(ancil_dat)
-ancil_dat <- ancil_dat %>% select("date","Site" , "ID", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "pool_riffle_depth_cm")
+ancil_dat <- ancil_dat %>% select("ID_unique", "date","Site" , "ID", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "pool_riffle_depth_cm")
 
 
-#Merge ancil_dat with N2O
-N2O_dat <- merge(ancil_dat, LGR_dat, by="ID")
+#Merge ancil_dat with N2O #Need to use a unique ID e.g. "2021-12-03_BU02_R4_LGR"
+#Need to rename tthe ID column in LGR_dat to "ID_unique"
+names(LGR_dat)[names(LGR_dat) == "ID"] <- "ID_unique"
 
-str(N2O_dat) # 69490 obs.
+N2O_dat <- merge(ancil_dat, LGR_dat, by="ID_unique")
 
-#some values for N2O are < 0 , delete them
+str(N2O_dat) # 168008 obs. of  19 variables
+
+#some values for N2O are < 0 , delete them #Why are we getting negative N2O readings? Will it cause issues deleting them like this????
 N2O_dat <-N2O_dat[N2O_dat$N2O_ug_L >= 0,]
 
-str(N2O_dat) #69483 obs., therefore 7 obs. removed
+str(N2O_dat) #163309 obs., therefore 4699 obs. removed (2.7% of observations...)
 
 #Check the units
 #V = L
 #A = m2
 # flux time = h
-# concentration of N2O = mg/L
+# concentration of N2O = ug/L 
 
-#[f0] = mg/m^2/h
+#[f0] = ug/m^2/h
 
-mean(N2O_dat$total_volume_L) # 4.5... L
-mean(N2O_dat$chamber_area_m2) # 0.045... m2
-mean(N2O_dat$N2O_ug_L) # 0.2 ug/L
-mean(N2O_dat$N2O_ppm) #0.3480787
-mean(N2O_dat$flux_time) # 0.05h = 3 minutes
+mean(N2O_dat$total_volume_L) # 5.00079... L
+mean(N2O_dat$chamber_area_m2) # 0.04523893... m2
+mean(N2O_dat$N2O_ug_L) # 0.4093119 ug/L
+mean(N2O_dat$N2O_ppm) # 0.3486239 ppm
+mean(N2O_dat$flux_time) # 0.05724947= 3.43 minutes
 
 #If getting an error "Error: flux_time not sorted in flux ID 2021-03-24_AL01_A1." need to investigate
-#flux time needs to be ordered within each ID
-N2O_dat_order <- data.table(N2O_dat, key = c("ID", "flux_time"))
+#flux time needs to be ordered within each ID (use ID unique for all of the data)
+N2O_dat_order <- data.table(N2O_dat, key = c("ID_unique", "flux_time"))
 
 #Run the package to calculate the gas flux rate
-N2O.results <- gasfluxes(N2O_dat_order, .id = "ID", .V = "total_volume_L", .A = "chamber_area_m2",.times = "flux_time", .C = "N2O_ug_L",method = c("linear"), plot = F) #can turn plot to FALSE if the number of plots was getting out of hand
+N2O.results <- gasfluxes(N2O_dat_order, .id = "ID_unique", .V = "total_volume_L", .A = "chamber_area_m2",.times = "flux_time", .C = "N2O_ug_L",method = c("linear"), plot = F) #can turn plot to FALSE if the number of plots was getting out of hand
+
 N2O.results
-str(N2O.results) #221 obs. --should be 223-- because 1 BR01_R1 and JO01_R6 are missing
+
+str(N2O.results) #676 obs. 
 
 
 
