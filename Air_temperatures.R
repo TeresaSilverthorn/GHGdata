@@ -134,12 +134,123 @@ for(i in 1:nrow(air_temp_ibutton)){
   
   matTemp[i,"Temp"]<-ans$Temp.C
 }
-}
+
 
 write.table(matTemp,file="ibutton_air_temp.csv")
 
+################################################################################
+##Now for the HOBOs. The tricky thing with the hobos is that we have 4 files for each site, that we should merge into 1 file per site
+#There are also some gaps in measurements which may leave out some campaigns: check. 
+#HOBOs Measured: April 19 to May 13, July 21 to August 14, September 13 to October 9, October 25 to November 19th
+#
+#Campaigns: 
+# 1. March 16-25 - covered by ibuttons
+# 2. May 3-7 - covered by ibuttons
+# 3. June 21 to July 1 - No temp data! Will need to use weather station data (see email from Tibo)
+# 4.July 19 to 23 - covered by HOBOs
+# 5. September 13 to 21 - covered by HOBOs
+# 6. October 22 to 28 - covered partly by HOBOs
+# 7. November 22 to Dec 3 - no temp data! Will need to use weather station data (see email from Tibo)
+# 
+#At some point we attached an ibutton to the Picarro : September 13 to 14 and October 25 to 28
+
+#Therefore will need to constrain the data from July 19 to Oct 28
+
+#Load and merge all files which contain the site name
 
 
+
+AL01<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/AL01", pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) #OK the workaround means no header but we can add those later. #For one site/folder #next try loop
+
+VI01<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/VI01", pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) 
+
+
+
+#Note light intensity is measured in lum/ft² so will need to convert to lux or metres (whatever is metric)
+              
+
+setwd("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/")
+
+filelist <- list.files(path="C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/")
+
+
+for(i in (filelist)){             #here put list.files() of the path to By site 
+  
+  setwd(paste0("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/",i))
+
+  Dat <-do.call(rbind, lapply(list.files(), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) 
+  
+assign(i,Dat)
+
+}
+
+
+
+
+
+
+
+
+
+data_files <- list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/")  # Identify file names
+data_files                                                    # Print file names
+
+
+#Now, we can write a for-loop containing the assign, paste0, and read.csv2 functions to read and save all files in our directory:
+  
+  for(i in 1:length(data_files)) { # Head of for-loop
+    assign(paste0("data", I),                                   # Read and store data frames
+           fread(paste0("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/",  
+                            data_files[i])))
+  }
+
+
+Dat <- do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/",ID, sep=""), pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Now run the same loop for the HOBOs
+
+matTemp2<-matrix(rep(NA,nrow(air_temp_ibutton)*1),nrow=nrow(air_temp_ibutton),ncol=1,dimnames=(list(air_temp_ibutton$ID_unique ,c("Temp")))) #creates a matrix with one column for the temperature associated with each unique IF
+
+## Loop for finding nearest temperature to each start time (ibuttons) 
+
+for(i in 1:nrow(air_temp_ibutton)){
+  I<-air_temp_ibutton[i,]
+  ID<-I$File_name
+  Dat <- fread(paste("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/iButton_data_Dryver/Air_water_soil_temperature_ibuttons/Air/",ID,sep=""), header=TRUE)
+  colnames(Dat) <- c("DateTime", "Unit", "Temp.C")
+  Dat$date <- as.POSIXct(Dat$DateTime, format = "%d/%m/%y %I:%M:%S %p", tz="Europe/Paris", origin = "1970-01-01")
+  
+  I$time_start<- as.POSIXct(I$time_start, format="%Y-%m-%d %H:%M", tz="Europe/Paris", origin = "1970-01-01")
+  
+  setDT(Dat)            ## convert to data.table by reference
+  setDT(I)            ## same
+  
+  I[, date := time_start] 
+  setkey(I, time_start)    ## set the column to perform the join on
+  setkey(Dat, date)    ## same as above
+  
+  ans = Dat[I, roll=Inf] ## perform rolling join
+  
+  matTemp[i,"Temp"]<-ans$Temp.C
+}
+
+
+write.table(matTemp,file="ibutton_air_temp.csv")
 
 
 
