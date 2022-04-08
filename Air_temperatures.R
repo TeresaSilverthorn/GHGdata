@@ -136,7 +136,7 @@ for(i in 1:nrow(air_temp_ibutton)){
 }
 
 
-write.table(matTemp,file="ibutton_air_temp.csv")
+write.table(matTemp,file="C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/ibutton_air_temp.csv") 
 
 ################################################################################
 ##Now for the HOBOs. The tricky thing with the hobos is that we have 4 files for each site, that we should merge into 1 file per site
@@ -149,7 +149,7 @@ write.table(matTemp,file="ibutton_air_temp.csv")
 # 3. June 21 to July 1 - No temp data! Will need to use weather station data (see email from Tibo)
 # 4.July 19 to 23 - covered by HOBOs
 # 5. September 13 to 21 - covered by HOBOs
-# 6. October 22 to 28 - covered partly by HOBOs
+# 6. October 22 to 28 - covered partly by HOBOs (can use the single HOBO attached to Picarro)
 # 7. November 22 to Dec 3 - no temp data! Will need to use weather station data (see email from Tibo)
 # 
 #At some point we attached an ibutton to the Picarro : September 13 to 14 and October 25 to 28
@@ -158,11 +158,19 @@ write.table(matTemp,file="ibutton_air_temp.csv")
 
 #Load and merge all files which contain the site name
 
+#Will need to re download all or just the problem files from the HOBO software. 
 
 
-AL01<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/AL01", pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) #OK the workaround means no header but we can add those later. #For one site/folder #next try loop
+testAL01<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/AL01", pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) #OK the workaround means no header but we can add those later. #For one site/folder #next try loop
 
-VI01<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/VI01", pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) 
+
+testAL01$Datetime <- as.POSIXct(testAL01$Datetime, format = "%m/%d/%y %I:%M:%S %p", tz="Europe/Paris", origin = "1970-01-01")
+
+plot <- ggplot(testAL01, aes(x=Datetime, y=Temp_C)) +
+  geom_line()  
+plot
+
+#VI01<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/VI01", pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) 
 
 
 
@@ -174,66 +182,56 @@ setwd("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancill
 filelist <- list.files(path="C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/")
 
 
-for(i in (filelist)){             #here put list.files() of the path to By site 
+myplot <- function(data, title){
+  ggplot(data, aes(x = Datetime,y=Temp_C)) +
+    geom_line () +
+    labs(title = title)
+}
+  
+
+#Loop to save each csv file in each folder by site
+
+
+for(i in (filelist)){            
   
   setwd(paste0("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/",i))
 
   Dat <-do.call(rbind, lapply(list.files(), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))) 
   
+  Dat$Datetime <- as.POSIXct(Dat$Datetime, format = "%m/%d/%y %I:%M:%S %p", tz="Europe/Paris", origin = "1970-01-01")
+  
 assign(i,Dat)
+
+setwd("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/New HOBO files")
+
+write.csv(Dat, paste0("HOBO_temp_", i, ".csv"))
+
+#print(myplot(get(i), i))#try to make a loop to plot each site to see if we have any gaps
+#RA01 stops in September
+#ME01 gap September to November
+#GR02 gap September to November
+#AL03 gap July to September
+#AL02 only Dec to Feb #No problem, totally replaced with AL01 in next loop
 
 }
 
 
 
+################################################################################
+## Now run the same loop for the HOBOs 
 
+air_temp_HOBO <- subset(air_temp2, date > as.Date("2021-06-20") ) #Will need to subset the data to exclude the first two campaigns
 
-
-
-
-
-data_files <- list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/")  # Identify file names
-data_files                                                    # Print file names
-
-
-#Now, we can write a for-loop containing the assign, paste0, and read.csv2 functions to read and save all files in our directory:
-  
-  for(i in 1:length(data_files)) { # Head of for-loop
-    assign(paste0("data", I),                                   # Read and store data frames
-           fread(paste0("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/",  
-                            data_files[i])))
-  }
-
-
-Dat <- do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/By site/",ID, sep=""), pattern='csv', full.names=T,  recursive=TRUE), fread, select = c(2:4), skip=2, header=F, col.names=c("Datetime", "Temp_C", "Light_intensity"))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Now run the same loop for the HOBOs
-
-matTemp2<-matrix(rep(NA,nrow(air_temp_ibutton)*1),nrow=nrow(air_temp_ibutton),ncol=1,dimnames=(list(air_temp_ibutton$ID_unique ,c("Temp")))) #creates a matrix with one column for the temperature associated with each unique IF
+matTemp2<-matrix(rep(NA,nrow(air_temp_HOBO)*1),nrow=nrow(air_temp_HOBO),ncol=1,dimnames=(list(air_temp_HOBO$ID_unique ,c("Temp")))) #creates a matrix with one column for the temperature associated with each unique IF
 
 ## Loop for finding nearest temperature to each start time (ibuttons) 
 
-for(i in 1:nrow(air_temp_ibutton)){
-  I<-air_temp_ibutton[i,]
+for(i in 1:nrow(air_temp_HOBO)){
+  I<-air_temp_HOBO[i,]
   ID<-I$File_name
-  Dat <- fread(paste("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/iButton_data_Dryver/Air_water_soil_temperature_ibuttons/Air/",ID,sep=""), header=TRUE)
-  colnames(Dat) <- c("DateTime", "Unit", "Temp.C")
-  Dat$date <- as.POSIXct(Dat$DateTime, format = "%d/%m/%y %I:%M:%S %p", tz="Europe/Paris", origin = "1970-01-01")
+  Dat <- fread(paste("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/New HOBO files/",ID,sep=""), header=TRUE)
+  colnames(Dat) <- c("", "Datetime", "Temp_C", "Light_intensity")
+  Dat$Datetime <- as.POSIXct(Dat$Datetime, format = "%Y/%m/%d %I:%M:%S %p", tz="Europe/Paris", origin = "1970-01-01")
   
   I$time_start<- as.POSIXct(I$time_start, format="%Y-%m-%d %H:%M", tz="Europe/Paris", origin = "1970-01-01")
   
@@ -242,15 +240,15 @@ for(i in 1:nrow(air_temp_ibutton)){
   
   I[, date := time_start] 
   setkey(I, time_start)    ## set the column to perform the join on
-  setkey(Dat, date)    ## same as above
+  setkey(Dat, Datetime)    ## same as above
   
   ans = Dat[I, roll=Inf] ## perform rolling join
   
-  matTemp[i,"Temp"]<-ans$Temp.C
+  matTemp2[i,"Temp"]<-ans$Temp_C
 }
 
 
-write.table(matTemp,file="ibutton_air_temp.csv")
+write.table(matTemp2,file="C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/HOBO_air_temp.csv")
 
 
 
