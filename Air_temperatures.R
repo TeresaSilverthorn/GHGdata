@@ -61,7 +61,7 @@ HOBO_dat <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Docume
 ###############################################################################
 
 
-#Read in the ancilalry data file which has the start and end times for GHG measurements
+#Read in the ancillary data file which has the start and end times for GHG measurements
 
 ancil_dat_LGR <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/LGR_ancil_dat.csv") # for LGR #Note this is the data cleaned wit the time shifts and +- 30s off start end times
 
@@ -120,9 +120,9 @@ for(i in 1:nrow(air_temp_ibutton)){
   I<-air_temp_ibutton[i,]
   ID<-I$File_name
   Dat <- fread(paste("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/iButton_data_Dryver/Air_water_soil_temperature_ibuttons/Air/",ID,sep=""), header=TRUE)
-  colnames(Dat) <- c("DateTime", "Unit", "Temp.C")
+  colnames(Dat) <- c("DateTime", "Unit", "Temp_C")
   Dat$date <- as.POSIXct(Dat$DateTime, format = "%d/%m/%y %I:%M:%S %p", tz="Europe/Paris", origin = "1970-01-01")
-  
+  Dat <- Dat %>% drop_na()
   I$time_start<- as.POSIXct(I$time_start, format="%Y-%m-%d %H:%M", tz="Europe/Paris", origin = "1970-01-01")
   
   setDT(Dat)            ## convert to data.table by reference
@@ -134,7 +134,8 @@ for(i in 1:nrow(air_temp_ibutton)){
   
   ans = Dat[I, roll=Inf] ## perform rolling join
   
-  matTemp[i,"Temp"]<-ans$Temp.C
+  matTemp[i,"Temp"]<-ans$Temp_C
+  
 }
 
 
@@ -390,6 +391,7 @@ for(i in 1:nrow(air_temp_HOBO)){
   Dat <- fread(paste("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/Filled air temp files/",ID,sep=""), header=TRUE)
   colnames(Dat) <- c("", "Datetime", "Temp_C", "Light_intensity")
   Dat$Datetime <- as.POSIXct(Dat$Datetime, format = "%Y/%m/%d %I:%M:%S %p", tz="Europe/Paris", origin = "1970-01-01")
+  Dat <- Dat %>% drop_na() #added bc problems of NAs in final mattemp file
   
   I$time_start<- as.POSIXct(I$time_start, format="%Y-%m-%d %H:%M", tz="Europe/Paris", origin = "1970-01-01")
   
@@ -408,7 +410,22 @@ for(i in 1:nrow(air_temp_HOBO)){
 
 write.table(matTemp2,file="C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/HOBO_air_temp.csv")
 
+######################### Save the ibutton and HOBO data into a single file #######
 
+#first you will need to read in the CSV's using fread because of the weird formatting of write.table
 
+air.temp1 <- fread("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/ibutton_air_temp.csv") #For C1 and C2 #ignore warning, column headers are OK
+colnames(air.temp1) <- c("ID_unique", "Air_temp")
+
+air.temp2 <-fread("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/HOBO_air_temp.csv") #for other campaigns
+colnames(air.temp2) <- c("ID_unique", "Air_temp")
+
+# Now rbind the two temperature files together vertically 
+
+air.temp <- rbind (air.temp1, air.temp2)
+
+#Save as a csv
+
+write.csv(air.temp, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/air_temp_full.csv")
 
 
