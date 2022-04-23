@@ -9,6 +9,7 @@ library(ggplot2)
 library(survival)
 library(scales)
 library(tidyr)
+library(purrr)
 #
 ### Goal:  Extract air temperature data from the ibutton dataloggers as well as Naiara's HOBO dataloggers to get an average air temperature per GHG measurement to correct for in the gasflux calculation ###
 #
@@ -64,14 +65,19 @@ HOBO_dat <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Docume
 #Read in the ancillary data file which has the start and end times for GHG measurements
 
 ancil_dat_LGR <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/LGR_ancil_dat.csv") # for LGR #Note this is the data cleaned wit the time shifts and +- 30s off start end times
+str(ancil_dat_LGR) #713 obs
 
 #For Picarro
 
 ancil_dat_Pic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Picarro_ancil_dat.csv") #likewise this data has +-30s off start and end times
+str(ancil_dat_Pic) #1379 obs
+
+#Total of 2092 observations = OK
 
 #Merge the LGR and Picarro ancillary data together vertically
 
 ancil_dat<-rbind(ancil_dat_LGR, ancil_dat_Pic)
+str(ancil_dat) #2092 obs. of  20 variables OK
 
 #Subset, site, date, and start and end time 
 
@@ -97,9 +103,14 @@ str(air_temp_ibutton) #666 obs. of  9 variables
 ###############################################################################
 
 #Merge the data logger master sheet  with the ancillary data
-air_temp2 <- merge(ancil_dat,HOBO_dat,by="Site")
 
-str(air_temp2)# 1849 obs. of  9 variables
+#put all data frames into list
+df_list <- list(ancil_dat,HOBO_dat) 
+
+#merge all data frames together
+air_temp2 <-  df_list %>% reduce(full_join, by='Site')
+
+str(air_temp2)# 2092 obs. of  9 variables:
 
 #Naiara's HOBO logger started measuring 19/04/2021 except for AL03, BR01, GR01, JO01 which started on 21/06/2021, therefore subset the dataframe after that. 21/06/2021 is when campaign 3 starts, so Naiara's HOBO will cover campaign 3 and later. Check if there are any gaps 
 
@@ -423,9 +434,142 @@ colnames(air.temp2) <- c("ID_unique", "Air_temp")
 # Now rbind the two temperature files together vertically 
 
 air.temp <- rbind (air.temp1, air.temp2)
+str(air.temp)
 
 #Save as a csv
 
 write.csv(air.temp, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/light loggers_FRA/air_temp_full.csv")
+
+
+
+# Need to find the average air temperature per site per date to calculate pressure
+#first need to merge with ancil_dat
+
+##############################################################################
+
+ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Aquatic_2022-04-22.csv", header=T)
+str(ancil_dat_aquatic) #1069 obs. of  31 variables
+
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Riparian_2022-04-22.csv", header=T)
+str(ancil_dat_riparian) #1023 obs. of  25 variables
+
+
+#add an ID column which combines site, point, and campaign
+
+#Could consider adding date or campaign to the ID column, but instead maybe subset by campaign, and run the loop separately for each campaign
+
+ancil_dat_aquatic$ID <- paste(ancil_dat_aquatic$siteID_new,ancil_dat_aquatic$point, ancil_dat_aquatic$campaign, sep="_")
+
+ancil_dat_riparian$ID <- paste(ancil_dat_riparian$siteID_new,ancil_dat_riparian$point, ancil_dat_riparian$campaign, sep="_" )
+
+#In order to merge the riparian and aquatic ancillary data, need to differentiate between aquatic and riparian collar heights, so rename aquatic collar heights to "sed_collarheight1" etc. 
+
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height1"] <- "sed_collar_height1"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height2"] <- "sed_collar_height2"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height3"] <- "sed_collar_height3"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_volume_L"] <- "sed_collar_volume_L"
+
+#combine the riparian and aquatic ancillary data
+ancil_dat <- bind_rows(ancil_dat_aquatic, ancil_dat_riparian)
+
+#add the date to the start and end time columns 
+ancil_dat$time_start<- as.POSIXct(paste(ancil_dat$date, ancil_dat$time_start), format="%Y-%m-%d %H:%M")
+ancil_dat$time_end<- as.POSIXct(paste(ancil_dat$date, ancil_dat$time_end), format="%Y-%m-%d %H:%M")
+
+#make soil temp and VWC average column
+ancil_dat$soil_temp <- rowMeans(ancil_dat[,c('soil_temp1', 'soil_temp2', 'soil_temp3')], na.rm=TRUE)
+ancil_dat$VWC <- rowMeans(ancil_dat[,c('VWC_1', 'VWC_2', 'VWC_3')], na.rm=TRUE)
+
+#Take the average also of sediment temperature and moisture, as well as collar height for dry fluxes
+ancil_dat$sed_temp <- rowMeans(ancil_dat[,c('sed_temp1', 'sed_temp2', 'sed_temp3')], na.rm=TRUE)
+ancil_dat$sed_VWC <- rowMeans(ancil_dat[,c('sed_VWC1', 'sed_VWC2', 'sed_VWC3')], na.rm=TRUE)
+ancil_dat$sed_collar_height <- rowMeans(ancil_dat[,c('sed_collar_height1', 'sed_collar_height2', 'sed_collar_height3')], na.rm=TRUE)
+
+
+#replace the resulting NaN's with NA's
+ancil_dat$soil_temp[is.nan(ancil_dat$soil_temp)]<-NA
+ancil_dat$VWC[is.nan(ancil_dat$VWC)]<-NA
+ancil_dat$sed_temp[is.nan(ancil_dat$sed_temp)]<-NA
+ancil_dat$sed_VWC[is.nan(ancil_dat$sed_VWC)]<-NA
+ancil_dat$sed_collar_height[is.nan(ancil_dat$sed_collar_height)]<-NA
+
+#Take the pool_width1 column (width2 is the length I think, so discard), divide by 100 to get metres and add them to the stream width column
+ancil_dat$stream_width_m_2 <- ancil_dat$pool_riffle_width1  /100
+ancil_dat <- ancil_dat %>% mutate(stream_width = coalesce(stream_width_m, stream_width_m_2)) 
+
+#Now rename the old stream width column and update the new one to stream_width_m
+names(ancil_dat)[names(ancil_dat) == "stream_width_m"] <- "stream_width_m_old"
+names(ancil_dat)[names(ancil_dat) == "stream_width"] <- "stream_width_m"
+
+
+#Subset just the useful columns: Date, ID, drying_regime, soil_temp, VWC, Picarro_LGR, total_volume_L, chamber_area_m2, flowing_state, habitat_type, pool_riffle_depth_cm, time_start, time_end 
+
+ancil_dat <- ancil_dat %>% select( "ID_unique", "campaign", "date", "siteID_new", "ID", "time_start", "time_end", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "stream_width_m", "pool_riffle_depth_cm", "sed_temp", "sed_VWC")
+
+#rename Site column
+names(ancil_dat)[names(ancil_dat) == "siteID_new"] <- "Site"
+
+str(ancil_dat) # 2092 obs
+
+#############################################################################
+
+str(air.temp)
+str(ancil_dat)
+
+#put all data frames into list
+df_list <- list(air.temp, ancil_dat)     
+
+#merge all data frames together
+ancil_dat2 <-  df_list %>% reduce(full_join, by='ID_unique')
+
+str(ancil_dat2) #2092 obs. of  20 variables
+
+temp_summarised <- ancil_dat2 %>% 
+  group_by(campaign, Site) %>% 
+  summarise(Mean_temp = mean(Air_temp), Sd_temp = sd(Air_temp) ) 
+
+# Why is 9.15 RA01 NA? and AL02	2021-11-25?
+
+write.csv(temp_summarised, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/Air_temp_site_average.csv")
+
+###########################################################################################################
+#
+# Naiara's air pressure excel file is missing the in-between campaigns, and also some problems with filling the formula, so best to do it in excel for everything. Use the above site averaged temperature to calculate. 
+#
+#
+#First, load in Naiara's pressure file
+
+pressures_rough <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/Pressure data/Copy of FRA_altitude_pressure_reformatted_for_R.csv")
+
+#Select only the useful columns: Site ID, date, campaign, alt, 
+pressures_rough <- pressures_rough[, c('SITE_ID', 'Date', 'Campaign', 'altitude_masl..google.earth.', 'hPa.niveau.de.mer.Amberiéu')]
+
+colnames(pressures_rough) <- c("Site", "Date", "campaign", "altitude_masl", "pressure_hPa")
+
+#Now merge with temp_summarized. 
+
+str(pressures_rough) #140 obs
+str(temp_summarised) #139 obs
+
+#merge
+
+#put all data frames into list
+df_list2 <- list(temp_summarised, pressures_rough)     
+
+#merge all data frames together
+pressures <-  df_list2 %>% reduce(full_join, by=c("campaign", "Site"))
+
+str(pressures) #140 obs
+
+#Now use the hypsometric equation, to determine the pressure.  Also known as the thickness equation, relates an atmospheric pressure ratio to the equivalent thickness of an atmospheric layer considering the layer mean of virtual temperature, gravity, and occasionally wind. It is derived from the hydrostatic equation and the ideal gas law.
+
+
+pressures$pressure_calc_hPa <- pressures$pressure_hPa*(1-((0.0065*pressures$altitude_masl)/(pressures$Mean_temp+0.0065*pressures$altitude_masl+273.15)))^5.257
+
+pressures$pressure_calc_atm <- pressures$pressure_calc_hPa * 0.000987
+
+#save as csv
+
+write.csv(pressures, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary Data/Pressure data/Air_pressures_calculated_TS.csv")
 
 
