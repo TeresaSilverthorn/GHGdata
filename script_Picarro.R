@@ -20,14 +20,16 @@ library(dpseg)
 ### put the date-time in the same format for all files
 ##########################################
 
+# In terms of converting from GMT time (Picarro) to France time. GMT +1 is from January to March 28, 2021 and GMT +2 from March 28 to October 31, then again GMT +1 from October 31 to December 31, 2021
+
 #load raw data of each campaign
 # Now with the 2nd campaign, ID isn't unique, thus we need to add date to ID
 
 ## CAMPAIGN 1 - MARCH 2021 ##
 
-Picarro_March2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign1_raw_data/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+Picarro_March2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Campaign1_raw_data_MAR2021/Picarro_raw_data", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
 #to include sub-directories, change the recursive T
-str(Picarro_March2021) #144316 obs.
+str(Picarro_March2021) # 144316 obs. of  22 variables
 
 # create a column merging date and time
 time<-as.POSIXct(paste(Picarro_March2021$DATE, Picarro_March2021$TIME), format="%Y-%m-%d %H:%M:%S")
@@ -41,7 +43,7 @@ Picarro_March2021$time<- as.POSIXlt(Picarro_March2021$time) +3600
 
 ## CAMPAIGN 2 - MAY 2021 ##
 
-Picarro_May2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign2_raw_data/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+Picarro_May2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign2_raw_data_MAY2021/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
 #to include sub-directories, change the recursive T
 str(Picarro_May2021) #106260 obs.
 
@@ -50,12 +52,105 @@ time<-as.POSIXct(paste(Picarro_May2021$DATE, Picarro_May2021$TIME), format="%Y-%
 Picarro_May2021<-cbind(Picarro_May2021,time)
 str(Picarro_May2021)
 
-#Since the Picarro data is in GMT time, we need to add one hour to correspond to the actual time (GMT+2 time) for campaign 2
+#Since the Picarro data is in GMT time, we need to add two hours to correspond to the actual time (GMT+2 time) for campaign 2
 Picarro_May2021$time<- as.POSIXlt(Picarro_May2021$time) +7200
 
 #Combine the campaigns together vertically
 Picarro_2021 <- rbind(Picarro_March2021, Picarro_May2021)
 str(Picarro_2021) #250576
+
+
+## CAMPAIGN 3 - JUNE 2021 ##
+
+Picarro_June2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign3_raw_data_JUN2021/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+#to include sub-directories, change the recursive T
+str(Picarro_June2021) # obs.
+
+# create a column merging date and time
+time<-as.POSIXct(paste(Picarro_June2021$DATE, Picarro_June2021$TIME), format="%Y-%m-%d %H:%M:%S")
+Picarro_June2021<-cbind(Picarro_June2021,time)
+str(Picarro_June2021)
+
+#Since the Picarro data is in GMT time, we need to add two hours to correspond to the actual time (GMT+2 time) for campaign 2
+Picarro_June2021$time<- as.POSIXlt(Picarro_June2021$time) +7200
+
+
+
+## CAMPAIGN 4 - JULY 2021 ##
+
+Picarro_July2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign3_raw_data_JUL2021/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+#to include sub-directories, change the recursive T
+str(Picarro_July2021) # obs.
+
+# create a column merging date and time
+time<-as.POSIXct(paste(Picarro_July2021$DATE, Picarro_July2021$TIME), format="%Y-%m-%d %H:%M:%S")
+Picarro_July2021<-cbind(Picarro_July2021,time)
+str(Picarro_July2021)
+
+#Since the Picarro data is in GMT time, we need to add two hours to correspond to the actual time (GMT+2 time) for campaign 2
+Picarro_July2021$time<- as.POSIXlt(Picarro_July2021$time) +7200
+
+
+## CAMPAIGN 5 -  SEPTEMBER 2021 ##
+
+Picarro_September2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign5_raw_data_SEP2021/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+#to include sub-directories, change the recursive T
+str(Picarro_September2021) # obs.
+
+# create a column merging date and time
+time<-as.POSIXct(paste(Picarro_September2021$DATE, Picarro_September2021$TIME), format="%Y-%m-%d %H:%M:%S")
+Picarro_September2021<-cbind(Picarro_September2021,time)
+str(Picarro_September2021)
+
+#Since the Picarro data is in GMT time, we need to add two hours to correspond to the actual time (GMT+2 time) for campaign 2
+Picarro_September2021$time<- as.POSIXlt(Picarro_September2021$time) +7200
+
+
+## CAMPAIGN 6 -  OCTOBER 2021 ##
+
+Picarro_October2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign6_raw_data_OCT2021/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+#to include sub-directories, change the recursive T
+str(Picarro_October2021) # obs.
+
+# create a column merging date and time
+time<-as.POSIXct(paste(Picarro_October2021$DATE, Picarro_October2021$TIME), format="%Y-%m-%d %H:%M:%S")
+Picarro_October2021<-cbind(Picarro_October2021,time)
+str(Picarro_October2021)
+
+#Since the Picarro data is in GMT time, we need to add two hours to correspond to the actual time (GMT+2 time) for campaign 2
+Picarro_October2021$time<- as.POSIXlt(Picarro_October2021$time) +7200
+
+## CAMPAIGN 7 -  November 2021 ##
+
+Picarro_November2021<-do.call(rbind, lapply(list.files("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign7_raw_data_NOV2021/Picarro_raw_data/", pattern='dat', full.names=T, recursive=TRUE), fread ,header=T))
+#to include sub-directories, change the recursive T
+str(Picarro_November2021) # obs.
+
+# create a column merging date and time
+time<-as.POSIXct(paste(Picarro_November2021$DATE, Picarro_November2021$TIME), format="%Y-%m-%d %H:%M:%S")
+Picarro_November2021<-cbind(Picarro_November2021,time)
+str(Picarro_November2021)
+
+#Since the Picarro data is in GMT time, we need to add one hour to correspond to the actual time (GMT+1 time) for campaign 7
+Picarro_November2021$time<- as.POSIXlt(Picarro_November2021$time) +3600
+
+
+###############################################
+
+### Combine the campaigns together vertically ###
+Picarro_2021 <- rbind(Picarro_March2021, Picarro_July2021)
+str(Picarro_2021) #
+
+
+
+
+
+
+
+
+
+
+
 
 
 #write.csv(Picarro_March2021,"C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Picarro_raw_March2021.csv")
@@ -69,16 +164,28 @@ str(Picarro_2021) #250576
 #load the ancillary data
 ##########################################################
 
-#Import ancillary data "GHG_data_entry_2021"
-ancil_dat_riparian <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign2_raw_data/GHG_data_entry_2021 - Riparian.csv") 
+#Import ancillary data #Update as necessary to most recent file in the Ancillary data folder in case you make any corrections to the Google Drive sheet
 
-# FOR THE MOST UPDATED VERSION, CHANGE THIS FILE PATH TO : "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_aquatic_2021-11-18.csv"
+ancil_dat_aquatic <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Aquatic_2022-04-22.csv", header=T)
+str(ancil_dat_aquatic) #1069 obs. of  31 variables
 
-ancil_dat_aquatic <- read.csv("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Campaign2_raw_data/GHG_data_entry_2021 - Aquatic.csv")
+ancil_dat_riparian <- read.csv ("C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/Ancillary data/GHG_data_entry_2021 - Riparian_2022-04-22.csv", header=T)
+str(ancil_dat_riparian) #1023 obs. of  25 variables
 
 #add an ID column  #Could consider adding date to the ID column, but instead maybe subset by campaign, and run the loop separately for each campaign
-ancil_dat_aquatic$ID <- paste(ancil_dat_aquatic$siteID_new,ancil_dat_aquatic$point,sep="_")
-ancil_dat_riparian$ID <- paste(ancil_dat_riparian$siteID_new,ancil_dat_riparian$point,sep="_")
+
+#Could consider adding date or campaign to the ID column, but instead maybe subset by campaign, and run the loop separately for each campaign
+
+ancil_dat_aquatic$ID <- paste(ancil_dat_aquatic$siteID_new,ancil_dat_aquatic$point, ancil_dat_aquatic$campaign, sep="_")
+
+ancil_dat_riparian$ID <- paste(ancil_dat_riparian$siteID_new,ancil_dat_riparian$point, ancil_dat_riparian$campaign, sep="_" )
+
+#In order to merge the riparian and aquatic ancillary data, need to differentiate between aquatic and riparian collar heights, so rename aquatic collar heights to "sed_collarheight1" etc. 
+
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height1"] <- "sed_collar_height1"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height2"] <- "sed_collar_height2"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_height3"] <- "sed_collar_height3"
+names(ancil_dat_aquatic)[names(ancil_dat_aquatic) == "collar_volume_L"] <- "sed_collar_volume_L"
 
 #combine the riparian and aquatic ancillary data
 ancil_dat <- bind_rows(ancil_dat_aquatic, ancil_dat_riparian)
@@ -91,15 +198,37 @@ ancil_dat$time_end<- as.POSIXct(paste(ancil_dat$date, ancil_dat$time_end), forma
 ancil_dat$soil_temp <- rowMeans(ancil_dat[,c('soil_temp1', 'soil_temp2', 'soil_temp3')], na.rm=TRUE)
 ancil_dat$VWC <- rowMeans(ancil_dat[,c('VWC_1', 'VWC_2', 'VWC_3')], na.rm=TRUE)
 
+#Take the average also of sediment temperature and moisture, as well as collar height for dry fluxes
+ancil_dat$sed_temp <- rowMeans(ancil_dat[,c('sed_temp1', 'sed_temp2', 'sed_temp3')], na.rm=TRUE)
+ancil_dat$sed_VWC <- rowMeans(ancil_dat[,c('sed_VWC1', 'sed_VWC2', 'sed_VWC3')], na.rm=TRUE)
+ancil_dat$sed_collar_height <- rowMeans(ancil_dat[,c('sed_collar_height1', 'sed_collar_height2', 'sed_collar_height3')], na.rm=TRUE)
+
+#replace the resulting NaN's with NA's
+ancil_dat$soil_temp[is.nan(ancil_dat$soil_temp)]<-NA
+ancil_dat$VWC[is.nan(ancil_dat$VWC)]<-NA
+ancil_dat$sed_temp[is.nan(ancil_dat$sed_temp)]<-NA
+ancil_dat$sed_VWC[is.nan(ancil_dat$sed_VWC)]<-NA
+ancil_dat$collar_height[is.nan(ancil_dat$collar_height)]<-NA
+ancil_dat$sed_collar_height[is.nan(ancil_dat$sed_collar_height)]<-NA
+
+#Take the pool_width1 column (width2 is the length I think, so discard), divide by 100 to get metres and add them to the stream width column
+ancil_dat$stream_width_m_2 <- ancil_dat$pool_riffle_width1  /100
+ancil_dat <- ancil_dat %>% mutate(stream_width = coalesce(stream_width_m, stream_width_m_2)) 
+
+#Now rename the old stream width column and update the new one to stream_width_m
+names(ancil_dat)[names(ancil_dat) == "stream_width_m"] <- "stream_width_m_old"
+names(ancil_dat)[names(ancil_dat) == "stream_width"] <- "stream_width_m"
+
 #Subset the ancillary data for only picarro data
 ancil_dat<-ancil_dat[ancil_dat$Picarro_LGR=="Picarro",]
 
-str(ancil_dat) # 443 obs.
+str(ancil_dat) # 1372 obs.
 
 #Subset just the useful columns: Date, ID, drying_regime, soil_temp, VWC, Picarro_LGR, total_volume_L, chamber_area_m2, flowing_state, habitat_type, pool_riffle_depth_cm, time_start, time_end 
-ancil_dat <- ancil_dat %>% select("ID_unique", "date", "campaign", "ID", "time_start", "time_end", "drying_regime", "soil_temp", "VWC", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "pool_riffle_depth_cm")
+ancil_dat <- ancil_dat %>% select("ID_unique",  "campaign", "date", "siteID_new", "ID", "time_start", "time_end", "drying_regime", "soil_temp", "VWC", "Picarro_LGR", "total_volume_L", "chamber_area_m2", "flow_state", "habitat_type", "stream_width_m", "pool_riffle_depth_cm", "sed_temp", "sed_VWC")
 
-str(ancil_dat) #443 obs
+str(ancil_dat) #1372 obs
+
 
 #Since the Picarro failed on 2021-03-23 at CO01, you can delete those rows
 ancil_dat<-ancil_dat[!(ancil_dat$ID=="2021-03-23_CO01_A1"),]
@@ -115,9 +244,10 @@ ancil_dat<-ancil_dat[!(ancil_dat$ID=="2021-03-23_CO01_R4"),]
 ancil_dat<-ancil_dat[!(ancil_dat$ID=="2021-03-23_CO01_R5"),]
 ancil_dat<-ancil_dat[!(ancil_dat$ID=="2021-03-23_CO01_R6"),]
 
-str(ancil_dat) #431 obs (13 obs removed)
+#rename Site column
+names(ancil_dat)[names(ancil_dat) == "siteID_new"] <- "Site"
 
-#write.csv(ancil_dat, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Picarro_ancil_dat.csv")
+str(ancil_dat) #1372 obs
 
 ###################################################
 #### Ancillary Data Cleaning: Long intervals #####
@@ -125,12 +255,12 @@ str(ancil_dat) #431 obs (13 obs removed)
 
 #data cleaning : check if there are any super long or super short intervals (potentially typos) 
 
-ancil_dat$int <- difftime(ancil_dat$time_end, ancil_dat$time_start, unit = "mins")
-ancil_dat <- ancil_dat %>% mutate(long_int=ifelse(int>=6,T,F))
+#ancil_dat$int <- difftime(ancil_dat$time_end, ancil_dat$time_start, unit = "mins")
+#ancil_dat <- ancil_dat %>% mutate(long_int=ifelse(int>=6,T,F))
 
 # Make an if else statement modifying the end time to 5 minutes after the start time if the interval is greater than 5 minutes
 
-ancil_dat$time_end <-data.table::fifelse(ancil_dat$long_int=="TRUE", ancil_dat$time_start+300, ancil_dat$time_end)
+#$time_end <-data.table::fifelse(ancil_dat$long_int=="TRUE", ancil_dat$time_start+300, ancil_dat$time_end)
 
 #The first few, and last few seconds are often wonky (remove)
 ancil_dat$time_start <- ancil_dat$time_start +30
@@ -138,6 +268,8 @@ ancil_dat$time_end <- ancil_dat$time_end -30
 
 head(ancil_dat)
 
+
+write.csv(ancil_dat, "C:/Users/teresa.silverthorn/Dropbox/My PC (lyp5183)/Documents/Data/R/GHGdata/Picarro_ancil_dat.csv")
 
 #########################################################################
 #### Clip the data by start and end times ####
